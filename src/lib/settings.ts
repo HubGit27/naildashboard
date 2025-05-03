@@ -1,9 +1,15 @@
+/*
+settings.ts - 
+File for global variables and configuring user role routing
+*/
+
 export const ITEM_PER_PAGE = 10
 
 type RouteAccessMap = {
   [key: string]: string[];
 };
 
+//Only users with the following roles can access the routes
 export const routeAccessMap: RouteAccessMap = {
   "/admin(.*)": ["admin"],
   "/student(.*)": ["student"],

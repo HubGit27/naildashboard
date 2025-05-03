@@ -35,7 +35,7 @@ const LoginPage = () => {
           <Clerk.GlobalError className="text-sm text-red-400" />
           <Clerk.Field name="identifier" className="flex flex-col gap-2">
             <Clerk.Label className="text-xs text-gray-500">
-              Username
+              Email
             </Clerk.Label>
             <Clerk.Input
               type="text"

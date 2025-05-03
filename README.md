@@ -1,6 +1,10 @@
 # Brandon Notes
 how to run application - 
+Start docker container (if not setup, check below) in the env file - 
+DATABASE_URL= "postgresql://bta:bta123@localhost:5432/nail" username, password, and 
 
+"npm run dev"
+set up clerk and add enviornment variables to /.env. Create users on clerk dash
 
 Prisma - This application uses postgres sql, but with prisma, any sql database can be subsituted
 "npm install prisma"
@@ -19,10 +23,11 @@ Clerk - login/ authentication to protect routes
 "npm install @clerk/nextjs"
 go to clerk online dashboard and create application
 add enviornment variables to .env
+Add metadata - in dashboard, choose sessions, customize token to add public metadata. That way it can include a role (2:35)
 
 
 docker - installer docker on docker.com and create account.
-Search for postgres image. port number 5431, in environment varaibles, add postgres_user, postgres_password, postgres_dbName
+Search for postgres image. port number 5431 since it's on computer, when deployed, it will be on server port. Volumes empty. in environment varaibles, add POSTGRES_USER (bta), POSTGRES_PASSWORD (bta123), POSTGRES_DB (nail)
 In the env file, add the variables to database url
 
 # Lama Dev School Management Dashboard
