@@ -20,7 +20,7 @@ import { Dispatch, SetStateAction, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 
-const ExamForm = ({
+const ResultForm = ({
   type,
   data,
   setOpen,
@@ -136,4 +136,4 @@ const ExamForm = ({
   );
 };
 
-export default ExamForm;
+export default ResultForm;

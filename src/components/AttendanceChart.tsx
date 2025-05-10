@@ -41,12 +41,14 @@ const AttendanceChart = ({
           fill="#FAE27C"
           legendType="circle"
           radius={[10, 10, 0, 0]}
+          minPointSize={2} 
         />
         <Bar
           dataKey="absent"
           fill="#C3EBFA"
           legendType="circle"
           radius={[10, 10, 0, 0]}
+          minPointSize={2} 
         />
       </BarChart>
     </ResponsiveContainer>

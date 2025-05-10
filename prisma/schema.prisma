@@ -7,6 +7,254 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  password       String
+  role           Role     @default(STAFF)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  stores Store[]
+}
+
+enum Role {
+  ADMIN
+  OWNER
+  MANAGER
+  STAFF
+}
+
+model Store {
+  id             String   @id @default(uuid())
+  storeName      String   @unique
+  address        String
+  ownerId        String
+  owner          User @relation(fields: [ownerId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Employee {
+  id        String    @id
+  username  String    @unique
+  firstName      String
+  lastName   String
+  email     String?   @unique
+  phone     String?   @unique
+  address   String
+  img       String?
+  sex       UserSex
+  createdAt DateTime  @default(now())
+  position     String?
+  hireDate     DateTime @default(now())
+  appointments Appointment[]
+  schedules    Schedule[]
+  commissions  Commission[]
+  birthday  DateTime?
+}
+
+model Customer {
+  id          String       @id
+  username    String       @unique
+  name        String
+  lastName     String
+  email       String?      @unique
+  phone       String?      @unique
+  address     String
+  img         String?
+  bloodType   String
+  sex         UserSex
+  createdAt   DateTime     @default(now())
+  birthday    DateTime?
+  notes        String?
+  updatedAt    DateTime    @updatedAt
+  appointments Appointment[]
+  payments     Payment[]
+  loyaltyPoints Int      @default(0)
+}
+
+// Work schedule for employees
+model Schedule {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  day        Int      // 0-6 (Sunday-Saturday)
+  startTime  DateTime
+  endTime    DateTime
+  isTimeOff  Boolean  @default(false)
+  
+}
+
+// Services offered by the salon
+model Service {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  duration    Int      // Duration in minutes
+  price       Decimal  @db.Decimal(10, 2)
+  category    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  appointmentServices AppointmentService[]
+  
+}
+
+// Appointments
+model Appointment {
+  id                String    @id @default(uuid())
+  customerId        String
+  customer          Customer  @relation(fields: [customerId], references: [id])
+  employeeId        String
+  employee          Employee  @relation(fields: [employeeId], references: [id])
+  date              DateTime
+  startTime         DateTime
+  endTime           DateTime
+  status            AppointmentStatus @default(SCHEDULED)
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  appointmentServices AppointmentService[]
+  payment           Payment?
+  
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// Junction table for appointments and services (many-to-many)
+model AppointmentService {
+  id            String      @id @default(uuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  serviceId     String
+  service       Service     @relation(fields: [serviceId], references: [id])
+  price         Decimal     @db.Decimal(10, 2)
+  
+  @@unique([appointmentId, serviceId])
+}
+
+// Products sold in the salon
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  brand       String?
+  sku         String?  @unique
+  barcode     String?
+  price       Decimal  @db.Decimal(10, 2)
+  cost        Decimal? @db.Decimal(10, 2)
+  quantity    Int      @default(0)
+  reorderPoint Int?
+  category    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orderItems  OrderItem[]
+}
+
+// Inventory transaction records
+model InventoryTransaction {
+  id          String     @id @default(uuid())
+  productId   String
+  quantity    Int
+  type        TransactionType
+  notes       String?
+  createdAt   DateTime   @default(now())
+  
+}
+
+enum TransactionType {
+  PURCHASE
+  SALE
+  ADJUSTMENT
+  RETURN
+  DAMAGED
+}
+
+// Payment records
+model Payment {
+  id            String        @id @default(uuid())
+  appointmentId String?       @unique
+  appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  amount        Decimal       @db.Decimal(10, 2)
+  tip           Decimal       @default(0) @db.Decimal(10, 2)
+  tax           Decimal       @default(0) @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  externalId    String?       // Reference to Clover/other payment processor ID
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  commissions   Commission[]
+  orderItems    OrderItem[]
+  
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  GIFT_CARD
+  MOBILE_PAYMENT
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// Employee commissions
+model Commission {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  paymentId   String
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount      Decimal  @db.Decimal(10, 2)
+  rate        Decimal  @db.Decimal(5, 2)
+  isPaid      Boolean  @default(false)
+  paidDate    DateTime?
+  createdAt   DateTime @default(now())
+  
+}
+
+// Products sold in retail transactions
+model OrderItem {
+  id          String   @id @default(uuid())
+  paymentId   String
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  price       Decimal  @db.Decimal(10, 2)
+  
+}
+
+// Business settings
+model Setting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+}
+
+// Below is old School datadashboard
 model Admin {
   id       String @id
   username String @unique

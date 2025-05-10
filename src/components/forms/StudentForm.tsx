@@ -11,7 +11,7 @@ import {
   teacherSchema,
   TeacherSchema,
 } from "@/lib/formValidationSchemas";
-import { useFormState } from "react-dom";
+import { useActionState } from 'react';
 import {
   createStudent,
   createTeacher,
@@ -43,7 +43,7 @@ const StudentForm = ({
 
   const [img, setImg] = useState<any>();
 
-  const [state, formAction] = useFormState(
+  const [state, formAction] = useActionState(
     type === "create" ? createStudent : updateStudent,
     {
       success: false,
