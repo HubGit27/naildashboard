@@ -8,6 +8,12 @@ const menuItems = [
     items: [
       {
         icon: "/home.png",
+        label: "Calander",
+        href: "/calander",
+        visible: ["admin", "teacher", "student", "parent"],
+      },
+      {
+        icon: "/home.png",
         label: "Home",
         href: "/",
         visible: ["admin", "teacher", "student", "parent"],

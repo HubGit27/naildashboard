@@ -21,7 +21,6 @@ enum Role {
   ADMIN
   OWNER
   MANAGER
-  STAFF
 }
 
 model Store {
@@ -32,6 +31,7 @@ model Store {
   owner          User @relation(fields: [ownerId], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  employees      Employee[] 
 }
 
 model Employee {
@@ -51,6 +51,7 @@ model Employee {
   schedules    Schedule[]
   commissions  Commission[]
   birthday  DateTime?
+  stores       Store[]
 }
 
 model Customer {
