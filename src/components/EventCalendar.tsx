@@ -13,7 +13,7 @@ const EventCalendar = () => {
   const [value, onChange] = useState<Value>(new Date());
 
   const router = useRouter();
-  console.log("Brandon eventcalander value ", value)
+  // ,
   useEffect(() => {
     if (value instanceof Date) {
       router.push(`?date=${value}`);

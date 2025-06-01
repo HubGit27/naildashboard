@@ -11,7 +11,7 @@ model User {
   id             String   @id @default(uuid())
   email          String   @unique
   password       String
-  role           Role     @default(STAFF)
+  role           Role     @default(MANAGER)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   stores Store[]
@@ -21,6 +21,7 @@ enum Role {
   ADMIN
   OWNER
   MANAGER
+  STAFF
 }
 
 model Store {
@@ -98,7 +99,6 @@ model Service {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   appointmentServices AppointmentService[]
-  
 }
 
 // Appointments

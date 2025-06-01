@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import EventCalendarContainer from "./EventCalendarContainer";
+import EventCalendarContainer from "../EventCalendarContainer";
 import EmployeeSelector, { Employee } from "./EmployeeSelector";
 import TimeScheduler, { Appointment } from "./TimeScheduler";
+import Scheduler from "./Scheduler";
 
 // Mock data - replace with actual API calls
 const MOCK_EMPLOYEES: Employee[] = [
@@ -91,20 +92,21 @@ const SchedulingContainer = () => {
 
   return (
     <div className="flex flex-col gap-3">
-        <div className="bg-white p-4 rounded-md shadow-sm mb-4">
+        {/* <div className="bg-white p-4 rounded-md shadow-sm mb-4">
           <h2 className="text-xl font-semibold mb-4">Team Schedule</h2>
           <EmployeeSelector 
             employees={employees}
             selectedEmployeeIds={selectedEmployeeIds}
             onSelectionChange={setSelectedEmployeeIds}
           />
-        </div>
-        <TimeScheduler
+        </div> */}
+        <Scheduler/>
+        {/* <TimeScheduler
           date={selectedDate}
           appointments={appointments}
           employees={employees}
           selectedEmployeeIds={selectedEmployeeIds}
-        />
+        /> */}
       </div>
   );
 };

@@ -4,9 +4,6 @@ Start docker container (if not setup, check below) in the env file -
 DATABASE_URL= "postgresql://bta:bta123@localhost:5432/nail" username, password, and postgres_db
 run - "npx prisma migrate dev --name init"
 run - "npx prisma studio" to see database on localhost:5555
-
-
-
 "npm run dev"
 set up clerk and add enviornment variables to /.env. Create users on clerk dash
 

@@ -42,7 +42,7 @@ const TimeScheduler = ({
 }: TimeSchedulerProps) => {
   // Generate time slots for the day (hourly from 8 AM to 6 PM)
   const timeSlots = useMemo(() => {
-    return Array.from({ length: 11 }, (_, i) => i + 8); // 8 AM to 6 PM
+    return Array.from({ length: 15 }, (_, i) => i + 7); // 8 AM to 6 PM
   }, []);
 
   // Filter appointments for selected employees
@@ -103,23 +103,26 @@ const TimeScheduler = ({
           })}
         </h2>
       </div>
-      
-      <div className="flex h-[600px]">
+
+      {/* Shared scroll container */}
+      <div className="flex h-[800px] overflow-y-auto">
         {/* Time indicators */}
-        <div className="w-16 relative border-r pr-2 flex-shrink-0">
-          {timeSlots.map((hour) => (
-            <div
-              key={hour}
-              className="absolute w-full text-right text-xs text-gray-500"
-              style={{ top: `${((hour - 8) / 10) * 100}%` }}
-            >
-              {formatTimeDisplay(hour)}
-            </div>
-          ))}
+        <div className="w-16 border-r pr-2 flex-shrink-0 relative">
+          <div className="relative h-[800px]">
+            {timeSlots.map((hour) => (
+              <div
+                key={hour}
+                className="absolute w-full text-right text-xs text-gray-500"
+                style={{ top: `${((hour - 8) / 18) * 100}%` }}
+              >
+                {formatTimeDisplay(hour)}
+              </div>
+            ))}
+          </div>
         </div>
-        
+
         {/* Schedule grid */}
-        <div className="flex-grow relative">
+        <div className="flex-grow relative h-[800px]">
           {/* Hour lines */}
           {timeSlots.map((hour) => (
             <div
@@ -128,15 +131,18 @@ const TimeScheduler = ({
               style={{ top: `${((hour - 8) / 10) * 100}%` }}
             />
           ))}
-          
+
           {/* Display employees as columns */}
           <div className="flex h-full">
             {selectedEmployeeIds.map((empId) => (
-              <div key={empId} className="flex-1 relative border-r p-1 min-w-[120px]">
+              <div
+                key={empId}
+                className="flex-1 relative border-r p-1 min-w-[120px]"
+              >
                 <div className="sticky top-0 bg-blue-50 p-1 text-center text-xs font-medium z-10 rounded mb-1">
                   {getEmployeeName(empId)}
                 </div>
-                
+
                 {/* Render appointments for this employee */}
                 {filteredAppointments
                   .filter((apt) => apt.employeeId === empId)
