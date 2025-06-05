@@ -102,7 +102,7 @@ const StudentListPage = async ({
 
   // URL PARAMS CONDITION
 
-  const query: Prisma.StudentWhereInput = {};
+  const query: Prisma.AppointmentWhereInput = {};
 
   if (queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {

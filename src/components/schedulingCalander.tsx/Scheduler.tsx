@@ -1,6 +1,9 @@
+"use client";
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, Calendar } from 'lucide-react';
-
+import prisma from "@/lib/prisma";
+import { useRouter,useSearchParams  } from "next/navigation";
 // Type definitions
 interface User {
   id: number;
@@ -39,9 +42,15 @@ interface MonthDay {
 
 type ViewType = 'day' | 'week' | 'month';
 
-const Scheduler: React.FC = () => {
+const Scheduler = ({
+  relatedData,
+  searchParams,
+}:{
+  relatedData?: any;
+  searchParams: { [keys: string]: string | undefined };
+}) => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [view, setView] = useState<ViewType>('week');
+  const [view, setView] = useState<ViewType>('day');
   const [users, setUsers] = useState<User[]>([
     { id: 1, name: 'John Doe', color: '#3b82f6', avatar: 'JD' },
     { id: 2, name: 'Jane Smith', color: '#ef4444', avatar: 'JS' },
@@ -218,6 +227,36 @@ const Scheduler: React.FC = () => {
     
     setUsers([...users, newUser]);
     setSelectedUsers([...selectedUsers, newUser.id]);
+    setShowUserModal(false);
+  };
+  // Add this state to track selected employees
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const router = useRouter();
+  const newSearchParams = useSearchParams();
+
+const handleEmployeeSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const selectedOptions = Array.from(e.target.selectedOptions);
+  const selectedIds = selectedOptions.map(option => option.value); // Keep as strings
+  
+  console.log('Selected employees:', selectedIds); // Debug log
+  setSelectedEmployees(selectedIds);
+};
+  const handleSaveEmployees = () => {
+
+    const params = new URLSearchParams(newSearchParams);
+    console.log(selectedEmployees)
+    if (selectedEmployees.length > 0) {
+      // Save selected employee IDs as comma-separated string
+      params.set('employees', selectedEmployees.join(','));
+    } else {
+      // Remove the parameter if no employees selected
+      params.delete('employees');
+    }
+    
+    // Update the URL with new search params
+    router.push(`?${params.toString()}`);
+    
+    // Close the modal
     setShowUserModal(false);
   };
 
@@ -399,7 +438,7 @@ const Scheduler: React.FC = () => {
     const startHour = event.start.getHours() + event.start.getMinutes() / 60;
     const endHour = event.end.getHours() + event.end.getMinutes() / 60;
     const duration = endHour - startHour;
-    console.log("startHour", startHour, "endHour", endHour, "event" , event)
+    //console.log("startHour", startHour, "endHour", endHour, "event" , event)
     return {
       position: 'absolute',
       top: `${startHour * 240}px`,
@@ -452,331 +491,192 @@ const Scheduler: React.FC = () => {
 
   const weekDays = view === 'week' ? getWeekDays(currentDate) : [];
   const monthDays = view === 'month' ? getMonthDays(currentDate) : [];
-
+  
+  const { employees } = relatedData;
+  console.log(employees);
   return (
-    <div className="w-full h-screen bg-white flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">Scheduler</h1>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => navigateDate(-1)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => navigateDate(1)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-2 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg"
-            >
-              Today
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            {(['day', 'week', 'month'] as ViewType[]).map(v => (
+    <div className="flex flex-col gap-3">
+      <div className="w-full h-screen bg-white flex flex-col">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-2xl font-bold text-gray-900">Scheduler</h1>
+            <div className="flex items-center space-x-2">
               <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-3 py-1 text-sm rounded-md capitalize ${
-                  view === v ? 'bg-white shadow-sm' : 'text-gray-600'
-                }`}
+                onClick={() => navigateDate(-1)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
               >
-                {v}
+                <ChevronLeft className="w-5 h-5" />
               </button>
-            ))}
+              <button
+                onClick={() => navigateDate(1)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setCurrentDate(new Date())}
+                className="px-3 py-2 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg"
+              >
+                Today
+              </button>
+            </div>
           </div>
           
-          {/* User Management for Day View */}
-          {view === 'day' && (
-            <div className="flex items-center space-x-2 ml-4">
-              <span className="text-sm text-gray-600">Users:</span>
-              <div className="flex items-center space-x-1">
-                {users.map(user => (
-                  <button
-                      key={user.id}
-                      onClick={() => handleUserToggle(user.id)}
-                      className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs transition-all ${
-                        selectedUsers.includes(user.id)
-                          ? 'bg-opacity-20 text-gray-800 border-2' // Note: style prop below might override background
-                          : 'bg-gray-100 text-gray-500 border-2 border-transparent'
-                      }`}
-                      style={{
-                        backgroundColor: selectedUsers.includes(user.id) ? `${user.color}40` : undefined, // Appends '40' for ~25% opacity if user.color is a hex like #RRGGBB
-                        borderColor: selectedUsers.includes(user.id) ? user.color : 'transparent',
-                      }}
-                      aria-pressed={selectedUsers.includes(user.id)} // Good for accessibility to indicate toggle state
-                  >
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium"
-                      style={{ backgroundColor: user.color }}
-                    >
-                      {user.avatar}
-                    </div>
-                    <span>{user.name}</span>
-                    {users.length > 1 && (
-                      <span // Changed from <button> to <span>
-                        onClick={(e: React.MouseEvent<HTMLSpanElement>) => { // Typed the event
-                          e.stopPropagation(); // Crucial to prevent the outer button's onClick
-                          handleDeleteUser(user.id);
-                        }}
-                        onKeyDown={(e: React.KeyboardEvent<HTMLSpanElement>) => { // Typed the event
-                          // Standard keyboard accessibility for button-like elements
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault(); // Prevent default space scroll or enter form submit
-                            e.stopPropagation();
-                            handleDeleteUser(user.id);
-                          }
-                        }}
-                        className="ml-1 text-gray-400 hover:text-red-500 cursor-pointer" // Added cursor-pointer
-                        role="button" // Accessibility: Informs assistive tech this span acts as a button
-                        tabIndex={0} // Accessibility: Makes the span focusable via keyboard
-                        aria-label={`Remove ${user.name}`} // Accessibility: Clear label for the action
-                      >
-                        ×
-                      </span>
-                    )}
-                  </button>
-                ))}
+          <div className="flex items-center space-x-2">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              {(['day', 'week', 'month'] as ViewType[]).map(v => (
                 <button
-                  onClick={handleAddUser}
-                  className="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-lg flex items-center justify-center text-gray-600"
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1 text-sm rounded-md capitalize ${
+                    view === v ? 'bg-white shadow-sm' : 'text-gray-600'
+                  }`}
                 >
-                  <Plus className="w-4 h-4" />
+                  {v}
                 </button>
-              </div>
-            </div>
-          )}
-          
-          <button
-            onClick={handleAddEvent}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Event</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Current Date Display */}
-      <div className="bg-gray-50 border-b border-gray-200 p-4">
-        <h2 className="text-lg font-semibold text-gray-900">
-          {view === 'day' && formatDate(currentDate)}
-          {view === 'week' && `Week of ${currentDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
-          {view === 'month' && currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-        </h2>
-      </div>
-
-      {/* Calendar Content */}
-      <div className="flex-1 overflow-auto">
-        {view === 'day' && (
-          <div className="flex">
-            {/* Time column */}
-            <div className="w-16 bg-gray-50 border-r border-gray-200 flex-shrink-0">
-              <div key={"time"} className="h-[60px] border-b border-gray-100 text-xs text-gray-500 p-2">
-              </div>
-              {timeSlots.map(time => (
-                <div key={time} className="h-[60px] border-b border-gray-100 text-xs text-gray-500 p-2">
-                  { time.endsWith(':00') || time.endsWith(':30') ? time : ''}
-                </div>
               ))}
             </div>
             
-            {/* User columns */}
-            <div className="flex-1 flex overflow-x-auto">
-              {getVisibleUsers().map(user => (
-                <div key={user.id} className="flex-1 min-w-[200px] border-r border-gray-200 relative">
-                  {/* User header */}
-                  <div className="bg-gray-50 p-3 border-b border-gray-200 flex items-center space-x-2 sticky top-0 z-20">
-                    <div 
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
-                      style={{ backgroundColor: user.color }}
+            {/* User Management for Day View */}
+            {view === 'day' && (
+              <div className="flex items-center space-x-2 ml-4">
+                <span className="text-sm text-gray-600">Users:</span>
+                <div className="flex items-center space-x-1">
+                  {users.map(user => (
+                    <button
+                        key={user.id}
+                        onClick={() => handleUserToggle(user.id)}
+                        className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs transition-all ${
+                          selectedUsers.includes(user.id)
+                            ? 'bg-opacity-20 text-gray-800 border-2' // Note: style prop below might override background
+                            : 'bg-gray-100 text-gray-500 border-2 border-transparent'
+                        }`}
+                        style={{
+                          backgroundColor: selectedUsers.includes(user.id) ? `${user.color}40` : undefined, // Appends '40' for ~25% opacity if user.color is a hex like #RRGGBB
+                          borderColor: selectedUsers.includes(user.id) ? user.color : 'transparent',
+                        }}
+                        aria-pressed={selectedUsers.includes(user.id)} // Good for accessibility to indicate toggle state
                     >
-                      {user.avatar}
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900">{user.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {getEventsForDateAndUser(currentDate, user.id).length} events
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Time slots for this user */}
-                  <div className="relative">
-                    {timeSlots.map(time => (
-                      <div 
-                        key={time} 
-                        className="h-[60px] border-b border-gray-100 hover:bg-blue-50 transition-colors relative"
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleTimeSlotDrop(e, currentDate, time, user.id)}
-                      >
-                        {/* Time slot indicator */}
-                        <div className="absolute inset-0 opacity-0 hover:opacity-100 bg-blue-100 border-2 border-dashed border-blue-300 rounded transition-opacity">
-                          Create Appointment at 
-                          {time}
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {/* Events for this user */}
-                    {events.map(event => (
                       <div
-                        key={event.id}
-                        draggable
-                        style={getEventStyleForUser(event, currentDate, user.id)}
-                        onClick={(e) => {
-                          if (!isDragging) {
-                            handleEventClick(event);
-                          }
-                        }}
-                        onDragStart={(e) => handleDragStart(e, event)}
-                        onDragEnd={handleDragEnd}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                        style={{ backgroundColor: user.color }}
                       >
-                        <div className="font-medium truncate">{event.title}</div>
-                        <div className="text-xs opacity-90">
-                          {event.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                        </div>
+                        {user.avatar}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              
-              {/* Empty state when no users selected */}
-              {getVisibleUsers().length === 0 && (
-                <div className="flex-1 flex items-center justify-center text-gray-500">
-                  <div className="text-center">
-                    <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No users selected</p>
-                    <p className="text-sm">Select users from the header to view their schedules</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {view === 'week' && (
-          <div className="flex h-full">
-            {/* Time column */}
-            <div className="w-16 bg-gray-50 border-r border-gray-200">
-              {timeSlots.map(time => (
-                <div key={time} className="h-[60px] border-b border-gray-100 text-xs text-gray-500 p-2">
-                  {time.endsWith(':00') ? time.slice(0, -3) : ''}
-                </div>
-              ))}
-            </div>
-            
-            {/* Week columns */}
-            <div className="flex-1 flex">
-              {weekDays.map(day => (
-                <div key={day.toISOString()} className="flex-1 border-r border-gray-200 relative">
-                  <div className="bg-gray-50 p-2 border-b border-gray-200 text-center">
-                    <div className="text-xs text-gray-500">
-                      {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                    </div>
-                    <div className={`text-sm font-medium ${
-                      day.toDateString() === new Date().toDateString() 
-                        ? 'text-blue-600 bg-blue-100 rounded-full w-6 h-6 flex items-center justify-center mx-auto' 
-                        : 'text-gray-900'
-                    }`}>
-                      {day.getDate()}
-                    </div>
-                  </div>
-                  
-                  <div className="relative">
-                    {timeSlots.map(time => (
-                      <div 
-                        key={time} 
-                        className="h-[60px] border-b border-gray-100 hover:bg-blue-50 transition-colors"
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleTimeSlotDrop(e, day, time)}
-                      ></div>
-                    ))}
-                    
-                    {events.map(event => (
-                      <div
-                        key={event.id}
-                        draggable
-                        style={getEventStyle(event, day)}
-                        onClick={(e) => {
-                          if (!isDragging) {
-                            handleEventClick(event);
-                          }
-                        }}
-                        onDragStart={(e) => handleDragStart(e, event)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <div className="font-medium truncate">{event.title}</div>
-                        <div className="text-xs opacity-75">
-                          {event.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {view === 'month' && (
-          <div className="p-4">
-            {/* Month grid header */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="p-2 text-center text-sm font-medium text-gray-700">
-                  {day}
-                </div>
-              ))}
-            </div>
-            
-            {/* Month grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {monthDays.map((dayObj, index) => {
-                const dayEvents = getEventsForDate(dayObj.date);
-                return (
-                  <div
-                    key={index}
-                    className={`min-h-[120px] p-2 border border-gray-200 transition-colors ${
-                      dayObj.isCurrentMonth ? 'bg-white hover:bg-blue-50' : 'bg-gray-50'
-                    } ${
-                      dayObj.date.toDateString() === new Date().toDateString() 
-                        ? 'ring-2 ring-blue-500' 
-                        : ''
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDateDrop(e, dayObj.date)}
+                      <span>{user.name}</span>
+                      {users.length > 1 && (
+                        <span // Changed from <button> to <span>
+                          onClick={(e: React.MouseEvent<HTMLSpanElement>) => { // Typed the event
+                            e.stopPropagation(); // Crucial to prevent the outer button's onClick
+                            handleDeleteUser(user.id);
+                          }}
+                          onKeyDown={(e: React.KeyboardEvent<HTMLSpanElement>) => { // Typed the event
+                            // Standard keyboard accessibility for button-like elements
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault(); // Prevent default space scroll or enter form submit
+                              e.stopPropagation();
+                              handleDeleteUser(user.id);
+                            }
+                          }}
+                          className="ml-1 text-gray-400 hover:text-red-500 cursor-pointer" // Added cursor-pointer
+                          role="button" // Accessibility: Informs assistive tech this span acts as a button
+                          tabIndex={0} // Accessibility: Makes the span focusable via keyboard
+                          aria-label={`Remove ${user.name}`} // Accessibility: Clear label for the action
+                        >
+                          ×
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  <button
+                    onClick={handleAddUser}
+                    className="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-lg flex items-center justify-center text-gray-600"
                   >
-                    <div className={`text-sm font-medium mb-1 ${
-                      dayObj.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
-                    }`}>
-                      {dayObj.date.getDate()}
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <button
+              onClick={handleAddEvent}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Event</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Current Date Display */}
+        <div className="bg-gray-50 border-b border-gray-200 p-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            {view === 'day' && formatDate(currentDate)}
+            {view === 'week' && `Week of ${currentDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
+            {view === 'month' && currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </h2>
+        </div>
+
+        {/* Calendar Content */}
+        <div className="flex-1 overflow-auto">
+          {view === 'day' && (
+            <div className="flex">
+              {/* Time column */}
+              <div className="w-16 bg-gray-50 border-r border-gray-200 flex-shrink-0">
+                <div key={"time"} className="h-[60px] border-b border-gray-100 text-xs text-gray-500 p-2">
+                </div>
+                {timeSlots.map(time => (
+                  <div key={time} className="h-[60px] border-b border-gray-100 text-xs text-gray-500 p-2">
+                    { time.endsWith(':00') || time.endsWith(':30') ? time : ''}
+                  </div>
+                ))}
+              </div>
+              
+              {/* User columns */}
+              <div className="flex-1 flex overflow-x-auto">
+                {getVisibleUsers().map(user => (
+                  <div key={user.id} className="flex-1 min-w-[200px] border-r border-gray-200 relative">
+                    {/* User header */}
+                    <div className="bg-gray-50 p-3 border-b border-gray-200 flex items-center space-x-2 sticky top-0 z-20">
+                      <div 
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                        style={{ backgroundColor: user.color }}
+                      >
+                        {user.avatar}
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{user.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {getEventsForDateAndUser(currentDate, user.id).length} events
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="space-y-1">
-                      {dayEvents.slice(0, 3).map(event => (
+                    {/* Time slots for this user */}
+                    <div className="relative">
+                      {timeSlots.map(time => (
+                        <div 
+                          key={time} 
+                          className="h-[60px] border-b border-gray-100 hover:bg-blue-50 transition-colors relative"
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleTimeSlotDrop(e, currentDate, time, user.id)}
+                        >
+                          {/* Time slot indicator */}
+                          <div className="absolute inset-0 opacity-0 hover:opacity-100 bg-blue-100 border-2 border-dashed border-blue-300 rounded transition-opacity">
+                            Create Appointment at 
+                            {time}
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Events for this user */}
+                      {events.map(event => (
                         <div
                           key={event.id}
                           draggable
-                          className={`text-xs px-2 py-1 rounded text-white truncate transition-all ${
-                            isDragging && draggedEvent?.id === event.id 
-                              ? 'opacity-50 cursor-grabbing transform rotate-1' 
-                              : 'cursor-grab hover:scale-105'
-                          }`}
-                          style={{ backgroundColor: event.color }}
+                          style={getEventStyleForUser(event, currentDate, user.id)}
                           onClick={(e) => {
-                            e.stopPropagation();
                             if (!isDragging) {
                               handleEventClick(event);
                             }
@@ -784,230 +684,337 @@ const Scheduler: React.FC = () => {
                           onDragStart={(e) => handleDragStart(e, event)}
                           onDragEnd={handleDragEnd}
                         >
-                          {event.title}
+                          <div className="font-medium truncate">{event.title}</div>
+                          <div className="text-xs opacity-90">
+                            {event.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                          </div>
                         </div>
                       ))}
-                      {dayEvents.length > 3 && (
-                        <div className="text-xs text-gray-500 px-2">
-                          +{dayEvents.length - 3} more
-                        </div>
-                      )}
                     </div>
                   </div>
-                );
-              })}
+                ))}
+                
+                {/* Empty state when no users selected */}
+                {getVisibleUsers().length === 0 && (
+                  <div className="flex-1 flex items-center justify-center text-gray-500">
+                    <div className="text-center">
+                      <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No users selected</p>
+                      <p className="text-sm">Select users from the header to view their schedules</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {view === 'week' && (
+            <div className="flex h-full">
+              {/* Time column */}
+              <div className="w-16 bg-gray-50 border-r border-gray-200">
+                {timeSlots.map(time => (
+                  <div key={time} className="h-[60px] border-b border-gray-100 text-xs text-gray-500 p-2">
+                    {time.endsWith(':00') ? time.slice(0, -3) : ''}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Week columns */}
+              <div className="flex-1 flex">
+                {weekDays.map(day => (
+                  <div key={day.toISOString()} className="flex-1 border-r border-gray-200 relative">
+                    <div className="bg-gray-50 p-2 border-b border-gray-200 text-center">
+                      <div className="text-xs text-gray-500">
+                        {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </div>
+                      <div className={`text-sm font-medium ${
+                        day.toDateString() === new Date().toDateString() 
+                          ? 'text-blue-600 bg-blue-100 rounded-full w-6 h-6 flex items-center justify-center mx-auto' 
+                          : 'text-gray-900'
+                      }`}>
+                        {day.getDate()}
+                      </div>
+                    </div>
+                    
+                    <div className="relative">
+                      {timeSlots.map(time => (
+                        <div 
+                          key={time} 
+                          className="h-[60px] border-b border-gray-100 hover:bg-blue-50 transition-colors"
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleTimeSlotDrop(e, day, time)}
+                        ></div>
+                      ))}
+                      
+                      {events.map(event => (
+                        <div
+                          key={event.id}
+                          draggable
+                          style={getEventStyle(event, day)}
+                          onClick={(e) => {
+                            if (!isDragging) {
+                              handleEventClick(event);
+                            }
+                          }}
+                          onDragStart={(e) => handleDragStart(e, event)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <div className="font-medium truncate">{event.title}</div>
+                          <div className="text-xs opacity-75">
+                            {event.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {view === 'month' && (
+            <div className="p-4">
+              {/* Month grid header */}
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="p-2 text-center text-sm font-medium text-gray-700">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Month grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {monthDays.map((dayObj, index) => {
+                  const dayEvents = getEventsForDate(dayObj.date);
+                  return (
+                    <div
+                      key={index}
+                      className={`min-h-[120px] p-2 border border-gray-200 transition-colors ${
+                        dayObj.isCurrentMonth ? 'bg-white hover:bg-blue-50' : 'bg-gray-50'
+                      } ${
+                        dayObj.date.toDateString() === new Date().toDateString() 
+                          ? 'ring-2 ring-blue-500' 
+                          : ''
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDateDrop(e, dayObj.date)}
+                    >
+                      <div className={`text-sm font-medium mb-1 ${
+                        dayObj.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
+                      }`}>
+                        {dayObj.date.getDate()}
+                      </div>
+                      
+                      <div className="space-y-1">
+                        {dayEvents.slice(0, 3).map(event => (
+                          <div
+                            key={event.id}
+                            draggable
+                            className={`text-xs px-2 py-1 rounded text-white truncate transition-all ${
+                              isDragging && draggedEvent?.id === event.id 
+                                ? 'opacity-50 cursor-grabbing transform rotate-1' 
+                                : 'cursor-grab hover:scale-105'
+                            }`}
+                            style={{ backgroundColor: event.color }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isDragging) {
+                                handleEventClick(event);
+                              }
+                            }}
+                            onDragStart={(e) => handleDragStart(e, event)}
+                            onDragEnd={handleDragEnd}
+                          >
+                            {event.title}
+                          </div>
+                        ))}
+                        {dayEvents.length > 3 && (
+                          <div className="text-xs text-gray-500 px-2">
+                            +{dayEvents.length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Event Modal */}
+        {showEventModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">
+                  {selectedEvent ? 'Edit Event' : 'Add Event'}
+                </h3>
+                <button
+                  onClick={() => setShowEventModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    value={eventForm.title}
+                    onChange={(e) => setEventForm({...eventForm, title: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Event title"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assigned User
+                  </label>
+                  <select
+                    value={eventForm.userId}
+                    onChange={(e) => {
+                      const userId = parseInt(e.target.value);
+                      const user = getUserById(userId);
+                      setEventForm({
+                        ...eventForm, 
+                        userId,
+                        color: user ? user.color : eventForm.color
+                      });
+                    }}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={eventForm.start}
+                    onChange={(e) => setEventForm({...eventForm, start: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={eventForm.end}
+                    onChange={(e) => setEventForm({...eventForm, end: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-between mt-6">
+                <div>
+                  {selectedEvent && (
+                    <button
+                      onClick={handleDeleteEvent}
+                      className="flex items-center space-x-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete</span>
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setShowEventModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEvent}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Event Modal */}
-      {showEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">
-                {selectedEvent ? 'Edit Event' : 'Add Event'}
-              </h3>
-              <button
-                onClick={() => setShowEventModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={eventForm.title}
-                  onChange={(e) => setEventForm({...eventForm, title: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Event title"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Assigned User
-                </label>
-                <select
-                  value={eventForm.userId}
-                  onChange={(e) => {
-                    const userId = parseInt(e.target.value);
-                    const user = getUserById(userId);
-                    setEventForm({
-                      ...eventForm, 
-                      userId,
-                      color: user ? user.color : eventForm.color
-                    });
-                  }}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {users.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Start Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={eventForm.start}
-                  onChange={(e) => setEventForm({...eventForm, start: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={eventForm.end}
-                  onChange={(e) => setEventForm({...eventForm, end: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-between mt-6">
-              <div>
-                {selectedEvent && (
-                  <button
-                    onClick={handleDeleteEvent}
-                    className="flex items-center space-x-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Delete</span>
-                  </button>
-                )}
-              </div>
-              
-              <div className="flex space-x-2">
+        {/* User Modal */}
+        {showUserModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Add Employees to Calendar</h3>
                 <button
-                  onClick={() => setShowEventModal(false)}
+                  onClick={() => setShowUserModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2 w-full">
+                  <label className="text-xs text-gray-500">Employees</label>
+                  <select
+                    multiple
+                    className="ring-[1.5px] ring-gray-300 p-2 rounded-md w-full h-32"
+                    value={selectedEmployees.map(String)} // Convert to strings for the select
+                    onChange={handleEmployeeSelection}
+                  >
+                    {employees.length > 0 ? (
+                      employees.map((employee: { id: number; firstName: string; lastName: string }) => (
+                        <option value={employee.id} key={employee.id}>
+                          {employee.firstName} {employee.lastName}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>No employees available</option>
+                    )}
+                  </select>
+                  {selectedEmployees.length > 0 && (
+                    <p className="text-xs text-gray-500">
+                      {selectedEmployees.length} employee{selectedEmployees.length > 1 ? 's' : ''} selected
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-2 mt-6">
+                <button
+                  onClick={() => setShowUserModal(false)}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleSaveEvent}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  onClick={handleSaveEmployees}
+                  disabled={selectedEmployees.length === 0}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save
+                  Add Employees
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* User Modal */}
-      {showUserModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Add New User</h3>
-              <button
-                onClick={() => setShowUserModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={userForm.name}
-                  onChange={(e) => setUserForm({...userForm, name: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter user name"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Avatar (optional)
-                </label>
-                <input
-                  type="text"
-                  value={userForm.avatar}
-                  onChange={(e) => setUserForm({...userForm, avatar: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., AB (auto-generated if empty)"
-                  maxLength={2}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Color
-                </label>
-                <div className="flex space-x-2">
-                  {['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#6b7280', '#ec4899', '#14b8a6'].map(color => (
-                    <button
-                      key={color}
-                      onClick={() => setUserForm({...userForm, color})}
-                      className={`w-8 h-8 rounded-full ${
-                        userForm.color === color ? 'ring-2 ring-offset-2 ring-gray-400' : ''
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
-              
-              {/* Preview */}
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Preview
-                </label>
-                <div className="flex items-center space-x-2">
-                  <div 
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
-                    style={{ backgroundColor: userForm.color }}
-                  >
-                    {userForm.avatar || userForm.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
-                  </div>
-                  <span className="font-medium">{userForm.name || 'User Name'}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-2 mt-6">
-              <button
-                onClick={() => setShowUserModal(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveUser}
-                disabled={!userForm.name}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add User
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
