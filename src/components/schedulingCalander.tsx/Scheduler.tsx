@@ -234,13 +234,13 @@ const Scheduler = ({
   const router = useRouter();
   const newSearchParams = useSearchParams();
 
-const handleEmployeeSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
-  const selectedOptions = Array.from(e.target.selectedOptions);
-  const selectedIds = selectedOptions.map(option => option.value); // Keep as strings
-  
-  console.log('Selected employees:', selectedIds); // Debug log
-  setSelectedEmployees(selectedIds);
-};
+  const handleEmployeeSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(e.target.selectedOptions);
+    const selectedIds = selectedOptions.map(option => option.value); // Keep as strings
+    
+    console.log('Selected employees:', selectedIds); // Debug log
+    setSelectedEmployees(selectedIds);
+  };
   const handleSaveEmployees = () => {
 
     const params = new URLSearchParams(newSearchParams);

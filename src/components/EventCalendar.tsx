@@ -1,5 +1,10 @@
 "use client";
-
+/*
+Server: Renders with new Date() (today)
+Client Hydration: Also starts with new Date() (same as server) ✅
+After Hydration: Checks localStorage/URL and updates if different
+Calendar: Briefly shows today, then smoothly transitions to stored date
+*/
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Calendar from "react-calendar";
@@ -9,27 +14,27 @@ type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
 const EventCalendar = () => {
-  // Initialize from localStorage, URL, or current date (in that order of priority)
-  const [value, onChange] = useState<Value>(() => {
-    if (typeof window !== 'undefined') {
-      // First check localStorage for user's last selected date
-      const stored = localStorage.getItem('selectedCalendarDate');
-      if (stored) {
-        return new Date(stored);
-      }
-      
-      // Then check URL params
-      const urlDate = new URLSearchParams(window.location.search).get('date');
-      if (urlDate) {
-        return new Date(urlDate);
-      }
-    }
-    
-    // Fallback to current date
-    return new Date();
-  });
+  // Always start with current date for SSR consistency
+  const [value, onChange] = useState<Value>(new Date());
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const router = useRouter();
+
+  // Mark as hydrated after client-side mount
+  useEffect(() => {
+    setIsHydrated(true);
+    
+    // Only after hydration, check localStorage/URL and update if needed
+    const stored = localStorage.getItem('selectedCalendarDate');
+    if (stored) {
+      onChange(new Date(stored));
+    } else {
+      const urlDate = new URLSearchParams(window.location.search).get('date');
+      if (urlDate) {
+        onChange(new Date(urlDate));
+      }
+    }
+  }, []);
 
   // Custom handler that saves to localStorage and updates URL
   const handleDateChange = (newValue: Value) => {
@@ -43,15 +48,17 @@ const EventCalendar = () => {
 
   // Update URL when value changes (preserve other search params)
   useEffect(() => {
-    if (value instanceof Date) {
+    if (isHydrated && value instanceof Date) {
       const params = new URLSearchParams(window.location.search);
       params.set('date', value.toString());
       router.push(`${window.location.pathname}?${params.toString()}`);
     }
-  }, [value, router]);
+  }, [value, router, isHydrated]);
 
   // Sync localStorage to URL on component mount (preserve other search params)
   useEffect(() => {
+    if (!isHydrated) return;
+    
     const stored = localStorage.getItem('selectedCalendarDate');
     
     if (stored) {
@@ -65,7 +72,7 @@ const EventCalendar = () => {
         router.replace(`${window.location.pathname}?${currentParams.toString()}`);
       }
     }
-  }, []); // Only run once on mount
+  }, [isHydrated, router]);
 
   return <Calendar onChange={handleDateChange} value={value} />;
 };
