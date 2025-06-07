@@ -49,7 +49,16 @@ const Scheduler = ({
   relatedData?: any;
   searchParams: { [keys: string]: string | undefined };
 }) => {
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  // Initialize currentDate from URL or default to today
+  const [currentDate, setCurrentDate] = useState<Date>(() => {
+    if (typeof window !== 'undefined') {
+      const urlDate = new URLSearchParams(window.location.search).get('date');
+      if (urlDate) {
+        return new Date(urlDate);
+      }
+    }
+    return new Date();
+  });
   const [view, setView] = useState<ViewType>('day');
   const [users, setUsers] = useState<User[]>([
     { id: 1, name: 'John Doe', color: '#3b82f6', avatar: 'JD' },
@@ -117,6 +126,20 @@ const Scheduler = ({
   const [draggedEvent, setDraggedEvent] = useState<Event | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
+  useEffect(() => {
+    const { initialDate } = relatedData;
+    console.log("searchParams in client:", searchParams); // ✅ Should log full object
+    const dateParam = searchParams?.date; // ✅ Use bracket or dot notation here
+
+    console.log("initialDate:", initialDate);
+
+    if (initialDate) {
+      const parsedDate = new Date(initialDate);
+      if (!isNaN(parsedDate.getTime()) && parsedDate.getTime() !== currentDate.getTime()) {
+        setCurrentDate(parsedDate);
+      }
+    }
+  }, [searchParams, currentDate]);
   // Time slots for day/week view
   const timeSlots = useMemo<string[]>(() => {
     const slots: string[] = [];
@@ -126,7 +149,6 @@ const Scheduler = ({
       slots.push(`${hour.toString().padStart(2, '0')}:30`);
       slots.push(`${hour.toString().padStart(2, '0')}:45`);
     }
-    console.log("timeSlots: ", slots)
     return slots;
 
   }, []);
@@ -193,6 +215,10 @@ const Scheduler = ({
     }
     
     setCurrentDate(newDate);
+    // Update URL to sync with calendar
+    const params = new URLSearchParams(window.location.search);
+    params.set('date', newDate.toString());
+    router.replace(`${window.location.pathname}?${params.toString()}`);
   };
 
   // User management
@@ -493,7 +519,6 @@ const Scheduler = ({
   const monthDays = view === 'month' ? getMonthDays(currentDate) : [];
   
   const { employees } = relatedData;
-  console.log(employees);
   return (
     <div className="flex flex-col gap-3">
       <div className="w-full h-screen bg-white flex flex-col">

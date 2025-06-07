@@ -31,8 +31,10 @@ const CalanderPage = async({
   const classTeachers = await prisma.teacher.findMany({
     select: { id: true, name: true, surname: true },
   });
-  console.log(employees)
-  relatedData = { teachers: classTeachers, employees: employees };
+    const resolvedParams = await searchParams;
+  const initialDate = resolvedParams.date || new Date().toISOString();
+  relatedData = { teachers: classTeachers, employees: employees, initialDate:initialDate };
+
   return (
     <div className="p-4 flex gap-4 flex-col md:flex-row">
       <div 

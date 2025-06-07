@@ -51,7 +51,7 @@ const EventCalendar = () => {
     if (isHydrated && value instanceof Date) {
       const params = new URLSearchParams(window.location.search);
       params.set('date', value.toString());
-      router.push(`${window.location.pathname}?${params.toString()}`);
+      router.replace(`${window.location.pathname}?${params.toString()}`);
     }
   }, [value, router, isHydrated]);
 
