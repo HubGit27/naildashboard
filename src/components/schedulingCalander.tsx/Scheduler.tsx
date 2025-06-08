@@ -236,6 +236,19 @@ const Scheduler = ({
     }
   };
 
+  // Handle clicking on a day in month view
+  const handleDayClick = (clickedDate: Date): void => {
+    setCurrentDate(clickedDate);
+    setView('day');
+    
+    // Update URL to sync with calendar
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      params.set('date', clickedDate.toString());
+      router.replace(`${window.location.pathname}?${params.toString()}`);
+    }
+  };
+
   // User management
   const handleUserToggle = (userId: number): void => {
     if (selectedUsers.includes(userId)) {
@@ -827,8 +840,8 @@ const Scheduler = ({
                   return (
                     <div
                       key={index}
-                      className={`min-h-[120px] p-2 border border-gray-200 transition-colors ${
-                        dayObj.isCurrentMonth ? 'bg-white hover:bg-blue-50' : 'bg-gray-50'
+                      className={`min-h-[120px] p-2 border border-gray-200 transition-colors cursor-pointer ${
+                        dayObj.isCurrentMonth ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'
                       } ${
                         dayObj.date.toDateString() === new Date().toDateString() 
                           ? 'ring-2 ring-blue-500' 
@@ -836,6 +849,7 @@ const Scheduler = ({
                       }`}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDateDrop(e, dayObj.date)}
+                      onClick={() => handleDayClick(dayObj.date)}
                     >
                       <div className={`text-sm font-medium mb-1 ${
                         dayObj.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
@@ -855,7 +869,7 @@ const Scheduler = ({
                             }`}
                             style={{ backgroundColor: event.color }}
                             onClick={(e) => {
-                              e.stopPropagation();
+                              e.stopPropagation(); // Prevent day click when clicking on event
                               if (!isDragging) {
                                 handleEventClick(event);
                               }
