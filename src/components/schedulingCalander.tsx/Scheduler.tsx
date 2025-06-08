@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, Calendar } from 'lucide-react';
 import prisma from "@/lib/prisma";
 import { useRouter,useSearchParams  } from "next/navigation";
+
 // Type definitions
 interface User {
   id: number;
@@ -49,16 +50,9 @@ const Scheduler = ({
   relatedData?: any;
   searchParams: { [keys: string]: string | undefined };
 }) => {
-  // Initialize currentDate from URL or default to today
-  const [currentDate, setCurrentDate] = useState<Date>(() => {
-    if (typeof window !== 'undefined') {
-      const urlDate = new URLSearchParams(window.location.search).get('date');
-      if (urlDate) {
-        return new Date(urlDate);
-      }
-    }
-    return new Date();
-  });
+  // Initialize currentDate to avoid hydration mismatch
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [isClient, setIsClient] = useState(false);
   const [view, setView] = useState<ViewType>('day');
   const [users, setUsers] = useState<User[]>([
     { id: 1, name: 'John Doe', color: '#3b82f6', avatar: 'JD' },
@@ -125,11 +119,30 @@ const Scheduler = ({
   });
   const [draggedEvent, setDraggedEvent] = useState<Event | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const router = useRouter();
+  const newSearchParams = useSearchParams();
+
+  // Handle client-side hydration
+  useEffect(() => {
+    setIsClient(true);
+    
+    // Only access window/URL after component mounts on client
+    const urlDate = new URLSearchParams(window.location.search).get('date');
+    if (urlDate) {
+      const parsedDate = new Date(urlDate);
+      if (!isNaN(parsedDate.getTime())) {
+        setCurrentDate(parsedDate);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    const { initialDate } = relatedData;
-    console.log("searchParams in client:", searchParams); // ✅ Should log full object
-    const dateParam = searchParams?.date; // ✅ Use bracket or dot notation here
+    if (!isClient) return; // Skip on server-side
+    
+    const { initialDate } = relatedData || {};
+    console.log("searchParams in client:", searchParams);
+    const dateParam = searchParams?.date;
 
     console.log("initialDate:", initialDate);
 
@@ -139,7 +152,8 @@ const Scheduler = ({
         setCurrentDate(parsedDate);
       }
     }
-  }, [searchParams, currentDate]);
+  }, [searchParams, currentDate, relatedData, isClient]);
+
   // Time slots for day/week view
   const timeSlots = useMemo<string[]>(() => {
     const slots: string[] = [];
@@ -150,7 +164,6 @@ const Scheduler = ({
       slots.push(`${hour.toString().padStart(2, '0')}:45`);
     }
     return slots;
-
   }, []);
 
   // Get days for week view
@@ -216,9 +229,11 @@ const Scheduler = ({
     
     setCurrentDate(newDate);
     // Update URL to sync with calendar
-    const params = new URLSearchParams(window.location.search);
-    params.set('date', newDate.toString());
-    router.replace(`${window.location.pathname}?${params.toString()}`);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      params.set('date', newDate.toString());
+      router.replace(`${window.location.pathname}?${params.toString()}`);
+    }
   };
 
   // User management
@@ -255,39 +270,30 @@ const Scheduler = ({
     setSelectedUsers([...selectedUsers, newUser.id]);
     setShowUserModal(false);
   };
-  // Add this state to track selected employees
-  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
-  const router = useRouter();
-  const newSearchParams = useSearchParams();
 
   const handleEmployeeSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedOptions = Array.from(e.target.selectedOptions);
-    const selectedIds = selectedOptions.map(option => option.value); // Keep as strings
+    const selectedIds = selectedOptions.map(option => option.value);
     
-    console.log('Selected employees:', selectedIds); // Debug log
+    console.log('Selected employees:', selectedIds);
     setSelectedEmployees(selectedIds);
   };
-  const handleSaveEmployees = () => {
 
+  const handleSaveEmployees = () => {
     const params = new URLSearchParams(newSearchParams);
     console.log(selectedEmployees)
     if (selectedEmployees.length > 0) {
-      // Save selected employee IDs as comma-separated string
       params.set('employees', selectedEmployees.join(','));
     } else {
-      // Remove the parameter if no employees selected
       params.delete('employees');
     }
     
-    // Update the URL with new search params
     router.push(`?${params.toString()}`);
-    
-    // Close the modal
     setShowUserModal(false);
   };
 
   const handleDeleteUser = (userId: number): void => {
-    if (users.length <= 1) return; // Keep at least one user
+    if (users.length <= 1) return;
     
     setUsers(users.filter(u => u.id !== userId));
     setSelectedUsers(selectedUsers.filter(id => id !== userId));
@@ -343,12 +349,10 @@ const Scheduler = ({
     let newStart: Date;
     
     if (targetTime) {
-      // For day/week view with specific time
       const [hours, minutes] = targetTime.split(':').map(Number);
       newStart = new Date(targetDate);
       newStart.setHours(hours, minutes, 0, 0);
     } else {
-      // For month view, keep the same time but change the date
       newStart = new Date(targetDate);
       newStart.setHours(draggedEvent.start.getHours(), draggedEvent.start.getMinutes(), 0, 0);
     }
@@ -464,7 +468,7 @@ const Scheduler = ({
     const startHour = event.start.getHours() + event.start.getMinutes() / 60;
     const endHour = event.end.getHours() + event.end.getMinutes() / 60;
     const duration = endHour - startHour;
-    //console.log("startHour", startHour, "endHour", endHour, "event" , event)
+    
     return {
       position: 'absolute',
       top: `${startHour * 240}px`,
@@ -518,7 +522,18 @@ const Scheduler = ({
   const weekDays = view === 'week' ? getWeekDays(currentDate) : [];
   const monthDays = view === 'month' ? getMonthDays(currentDate) : [];
   
-  const { employees } = relatedData;
+  const { employees } = relatedData || {};
+
+  // Don't render the date until client-side hydration is complete
+  const getDateDisplay = () => {
+    if (!isClient) return '';
+    
+    if (view === 'day') return formatDate(currentDate);
+    if (view === 'week') return `Week of ${currentDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+    if (view === 'month') return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return '';
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="w-full h-screen bg-white flex flex-col">
@@ -574,14 +589,14 @@ const Scheduler = ({
                         onClick={() => handleUserToggle(user.id)}
                         className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs transition-all ${
                           selectedUsers.includes(user.id)
-                            ? 'bg-opacity-20 text-gray-800 border-2' // Note: style prop below might override background
+                            ? 'bg-opacity-20 text-gray-800 border-2'
                             : 'bg-gray-100 text-gray-500 border-2 border-transparent'
                         }`}
                         style={{
-                          backgroundColor: selectedUsers.includes(user.id) ? `${user.color}40` : undefined, // Appends '40' for ~25% opacity if user.color is a hex like #RRGGBB
+                          backgroundColor: selectedUsers.includes(user.id) ? `${user.color}40` : undefined,
                           borderColor: selectedUsers.includes(user.id) ? user.color : 'transparent',
                         }}
-                        aria-pressed={selectedUsers.includes(user.id)} // Good for accessibility to indicate toggle state
+                        aria-pressed={selectedUsers.includes(user.id)}
                     >
                       <div
                         className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium"
@@ -591,23 +606,22 @@ const Scheduler = ({
                       </div>
                       <span>{user.name}</span>
                       {users.length > 1 && (
-                        <span // Changed from <button> to <span>
-                          onClick={(e: React.MouseEvent<HTMLSpanElement>) => { // Typed the event
-                            e.stopPropagation(); // Crucial to prevent the outer button's onClick
+                        <span
+                          onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
+                            e.stopPropagation();
                             handleDeleteUser(user.id);
                           }}
-                          onKeyDown={(e: React.KeyboardEvent<HTMLSpanElement>) => { // Typed the event
-                            // Standard keyboard accessibility for button-like elements
+                          onKeyDown={(e: React.KeyboardEvent<HTMLSpanElement>) => {
                             if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault(); // Prevent default space scroll or enter form submit
+                              e.preventDefault();
                               e.stopPropagation();
                               handleDeleteUser(user.id);
                             }
                           }}
-                          className="ml-1 text-gray-400 hover:text-red-500 cursor-pointer" // Added cursor-pointer
-                          role="button" // Accessibility: Informs assistive tech this span acts as a button
-                          tabIndex={0} // Accessibility: Makes the span focusable via keyboard
-                          aria-label={`Remove ${user.name}`} // Accessibility: Clear label for the action
+                          className="ml-1 text-gray-400 hover:text-red-500 cursor-pointer"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Remove ${user.name}`}
                         >
                           ×
                         </span>
@@ -637,9 +651,7 @@ const Scheduler = ({
         {/* Current Date Display */}
         <div className="bg-gray-50 border-b border-gray-200 p-4">
           <h2 className="text-lg font-semibold text-gray-900">
-            {view === 'day' && formatDate(currentDate)}
-            {view === 'week' && `Week of ${currentDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
-            {view === 'month' && currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            {getDateDisplay()}
           </h2>
         </div>
 
@@ -1000,10 +1012,10 @@ const Scheduler = ({
                   <select
                     multiple
                     className="ring-[1.5px] ring-gray-300 p-2 rounded-md w-full h-32"
-                    value={selectedEmployees.map(String)} // Convert to strings for the select
+                    value={selectedEmployees.map(String)}
                     onChange={handleEmployeeSelection}
                   >
-                    {employees.length > 0 ? (
+                    {employees && employees.length > 0 ? (
                       employees.map((employee: { id: number; firstName: string; lastName: string }) => (
                         <option value={employee.id} key={employee.id}>
                           {employee.firstName} {employee.lastName}
