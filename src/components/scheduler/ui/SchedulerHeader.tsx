@@ -9,16 +9,18 @@ import { formatDateHeader } from '../utils';
 interface SchedulerHeaderProps {
   currentDate: Date;
   view: ViewType;
+  viewingUserName: string | null; // Prop to hold the single user's name
   onNavigate: (direction: number) => void;
   onSetView: (view: ViewType) => void;
   onToday: () => void;
   onAddEvent: () => void;
-  onOpenUserSelector: () => void; // Callback to open the new modal
+  onOpenUserSelector: () => void;
 }
 
 export const SchedulerHeader: React.FC<SchedulerHeaderProps> = ({
   currentDate,
   view,
+  viewingUserName,
   onNavigate,
   onSetView,
   onToday,
@@ -40,13 +42,13 @@ export const SchedulerHeader: React.FC<SchedulerHeaderProps> = ({
       </div>
 
       <div className="flex items-center space-x-4">
-          {/* Button to open user selection modal, shown only in day view */}
-          {view === 'day' && (
-            <button onClick={onOpenUserSelector} className="flex items-center space-x-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200">
-                <Users className="w-4 h-4" />
-                <span className="text-sm font-semibold">Select Employees</span>
-            </button>
-          )}
+          <button onClick={onOpenUserSelector} className="flex items-center space-x-2 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200">
+              <Users className="w-4 h-4" />
+              {/* --- FIX: Conditional button text --- */}
+              <span className="text-sm font-semibold">
+                {view === 'day' ? 'Select Employees' : viewingUserName ? `Viewing: ${viewingUserName}` : 'Select Employee'}
+              </span>
+          </button>
 
           <div className="flex bg-gray-100 rounded-lg p-1">
               {(['day', 'week', 'month'] as ViewType[]).map(v => (

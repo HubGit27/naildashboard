@@ -21,26 +21,56 @@ export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
     const [currentDate, setCurrentDate] = useState<Date>(() => initialDate ? new Date(initialDate) : new Date());
     const [view, setView] = useState<ViewType>('day');
     const [users, setUsers] = useState<User[]>(initialUsers);
-    const [selectedUsers, setSelectedUsers] = useState<Array<string | number>>(() => users.map(u => u.id));
+    
+    // --- FIX: Read initial selection directly from searchParams to prevent hydration mismatch ---
+    const getInitialSelection = () => {
+        const urlEmployees = searchParams.employees ? searchParams.employees.split(',') : null;
+        return urlEmployees || initialUsers.map(u => u.id);
+    };
+
+    const [dayViewSelectionCache, setDayViewSelectionCache] = useState<Array<string | number>>(getInitialSelection);
+    const [singleViewSelectionCache, setSingleViewSelectionCache] = useState<string | number | null>(() => {
+        const initialSelection = getInitialSelection();
+        return initialSelection.length > 0 ? initialSelection[0] : (initialUsers.length > 0 ? initialUsers[0].id : null);
+    });
+    
+    const [selectedUsers, setSelectedUsers] = useState<Array<string | number>>(getInitialSelection);
+    
     const [events, setEvents] = useState<SchedulerEvent[]>(DUMMY_EVENTS);
     const [selectedEvent, setSelectedEvent] = useState<SchedulerEvent | null>(null);
     const [showEventModal, setShowEventModal] = useState<boolean>(false);
-    
-    // --- FIX: Add state for the user selection modal ---
     const [showUserModal, setShowUserModal] = useState<boolean>(false);
     
     const [draggedEvent, setDraggedEvent] = useState<SchedulerEvent | null>(null);
     const [isDragging, setIsDragging] = useState(false);
 
     const handleUserToggle = (userId: string | number) => {
-        setSelectedUsers(prevSelected => {
-            if (prevSelected.includes(userId)) {
-                return prevSelected.length > 1 ? prevSelected.filter(id => id !== userId) : prevSelected;
-            } else {
-                return [...prevSelected, userId];
-            }
-        });
+        if (view === 'day') {
+            const newSelection = selectedUsers.includes(userId)
+                ? selectedUsers.length > 1 ? selectedUsers.filter(id => id !== userId) : selectedUsers
+                : [...selectedUsers, userId];
+            setSelectedUsers(newSelection);
+            setDayViewSelectionCache(newSelection);
+        } else {
+            setSelectedUsers([userId]);
+            setSingleViewSelectionCache(userId);
+        }
     };
+
+    useEffect(() => {
+        if (view === 'week' || view === 'month') {
+            if (singleViewSelectionCache) {
+                 setSelectedUsers([singleViewSelectionCache]);
+            } else if (users.length > 0) {
+                 const firstUserId = users[0].id;
+                 setSelectedUsers([firstUserId]);
+                 setSingleViewSelectionCache(firstUserId);
+            }
+        } else if (view === 'day') {
+            setSelectedUsers(dayViewSelectionCache);
+        }
+    }, [view]);
+
 
     const handleDragStart = (event: React.DragEvent, schedulerEvent: SchedulerEvent) => {
         setDraggedEvent(schedulerEvent);
@@ -55,36 +85,32 @@ export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
 
     const handleDrop = (targetDate: Date, targetTime: string, targetUserId?: string | number) => {
         if (!draggedEvent) return;
-
         const eventDuration = draggedEvent.end.getTime() - draggedEvent.start.getTime();
         const [hours, minutes] = targetTime.split(':').map(Number);
-        
         const newStart = new Date(targetDate);
         newStart.setHours(hours, minutes, 0, 0);
-
         const newEnd = new Date(newStart.getTime() + eventDuration);
-
-        const updatedEvent: SchedulerEvent = {
-            ...draggedEvent,
-            start: newStart,
-            end: newEnd,
-            userId: targetUserId || draggedEvent.userId,
-        };
-
+        const updatedEvent: SchedulerEvent = { ...draggedEvent, start: newStart, end: newEnd, userId: targetUserId || draggedEvent.userId };
         setEvents(events.map(e => e.id === draggedEvent.id ? updatedEvent : e));
         handleDragEnd();
     };
 
-
     useEffect(() => { setIsClient(true); }, []);
-
+    
+    // --- FIX: This effect now syncs both date and employee selection to the URL ---
     useEffect(() => {
         if (!isClient) return;
         const params = new URLSearchParams(window.location.search);
         params.set('date', currentDate.toISOString());
-        router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
-    }, [currentDate, router, isClient]);
+        
+        if (selectedUsers.length > 0) {
+            params.set('employees', selectedUsers.join(','));
+        } else {
+            params.delete('employees');
+        }
 
+        router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+    }, [currentDate, selectedUsers, isClient, router]); // Add selectedUsers and isClient to dependency array
 
     const navigateDate = (direction: number) => {
         const newDate = new Date(currentDate);
@@ -109,7 +135,6 @@ export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
             color: user ? user.color : '#3b82f6',
             userId: eventData.userId
         };
-
         if (selectedEvent) {
             setEvents(events.map(e => e.id === selectedEvent.id ? newEvent : e));
         } else {
@@ -120,6 +145,7 @@ export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
     };
 
     const visibleUsers = useMemo(() => users.filter(user => selectedUsers.includes(user.id)), [users, selectedUsers]);
+    const visibleEvents = useMemo(() => events.filter(event => selectedUsers.includes(event.userId)), [events, selectedUsers]);
 
     return {
         isClient,
@@ -129,12 +155,11 @@ export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
         setView,
         users,
         visibleUsers,
-        events,
+        events: visibleEvents,
         selectedUsers,
         handleUserToggle,
         showEventModal,
         setShowEventModal,
-        // --- FIX: Return the state and setter from the hook ---
         showUserModal,
         setShowUserModal,
         selectedEvent,

@@ -1,7 +1,7 @@
 // components/scheduler/Scheduler.tsx
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react'; // Import useMemo
 import { useScheduler } from './hooks/useScheduler';
 import { User, SchedulerEvent } from './types';
 
@@ -27,7 +27,7 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
     setView,
     users,
     visibleUsers,
-    events,
+    events: visibleEvents,
     showEventModal,
     setShowEventModal,
     selectedEvent,
@@ -44,6 +44,16 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
     showUserModal,
     setShowUserModal,
   } = useScheduler({ initialUsers, initialDate, searchParams });
+
+  // --- FIX: Determine the name of the single selected user ---
+  const viewingUserName = useMemo(() => {
+    if (view !== 'day' && selectedUsers.length === 1) {
+      const selectedUser = users.find(user => user.id === selectedUsers[0]);
+      return selectedUser ? selectedUser.name : null;
+    }
+    return null;
+  }, [users, selectedUsers, view]);
+
 
   const handleAddEventClick = () => {
     setSelectedEvent(null);
@@ -63,7 +73,7 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
         return <DayView 
             currentDate={currentDate} 
             users={visibleUsers} 
-            events={events} 
+            events={visibleEvents}
             onEventClick={handleEventClick}
             isDragging={isDragging}
             onDragStart={handleDragStart}
@@ -73,7 +83,7 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
       case 'week':
         return <WeekView 
             currentDate={currentDate} 
-            events={events} 
+            events={visibleEvents}
             onEventClick={handleEventClick}
             isDragging={isDragging}
             onDragStart={handleDragStart}
@@ -83,7 +93,7 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
       case 'month':
         return <MonthView 
             currentDate={currentDate} 
-            events={events} 
+            events={visibleEvents}
             onDayClick={handleDayClickInMonthView} 
         />;
       default:
@@ -100,6 +110,7 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
       <SchedulerHeader
         currentDate={currentDate}
         view={view}
+        viewingUserName={viewingUserName} // Pass the name to the header
         onNavigate={navigateDate}
         onSetView={setView}
         onToday={() => setCurrentDate(new Date())}
@@ -128,6 +139,7 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
             users={users}
             selectedUsers={selectedUsers}
             onToggle={handleUserToggle}
+            view={view}
         />
       )}
     </div>
