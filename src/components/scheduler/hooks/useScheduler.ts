@@ -2,39 +2,60 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { User, SchedulerEvent, EventForm, ViewType } from '../types';
 
 const today = new Date();
 const DUMMY_EVENTS: SchedulerEvent[] = [
-    { id: 1, title: 'Team Meeting', start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0), end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 30), color: '#3b82f6', userId: 'EMP-001' },
-    { id: 2, title: 'Project Review', start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0), end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 30), color: '#ef4444', userId: 'EMP-002' },
+    { id: 1, title: 'Team Meeting', start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0), end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 30), color: '#3b82f6', userId: '1' },
+    { id: 2, title: 'Project Review', start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0), end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 30), color: '#ef4444', userId: '2' },
 ];
 
-export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
+export const useScheduler = ({ initialUsers = [], searchParams }: {
     initialUsers: User[];
-    initialDate?: string;
     searchParams: { [key:string]: string | undefined };
 }) => {
     const router = useRouter();
+    const pathname = usePathname();
     const [isClient, setIsClient] = useState(false);
-    const [currentDate, setCurrentDate] = useState<Date>(() => initialDate ? new Date(initialDate) : new Date());
-    const [view, setView] = useState<ViewType>('day');
-    const [users, setUsers] = useState<User[]>(initialUsers);
     
-    // --- FIX: Read initial selection directly from searchParams to prevent hydration mismatch ---
-    const getInitialSelection = () => {
-        const urlEmployees = searchParams.employees ? searchParams.employees.split(',') : null;
-        return urlEmployees || initialUsers.map(u => u.id);
+    const getInitialDate = () => {
+        const urlDate = searchParams.date;
+        if (urlDate) {
+            const parsed = new Date(urlDate);
+            if (!isNaN(parsed.getTime())) {
+                return parsed;
+            }
+        }
+        return new Date();
     };
 
+    const getInitialView = () => {
+        const urlView = searchParams.view;
+        if (urlView === 'day' || urlView === 'week' || urlView === 'month') {
+            return urlView;
+        }
+        return 'day';
+    };
+
+    const getInitialSelection = () => {
+        const urlEmployees = searchParams.employees?.split(',');
+        return urlEmployees && urlEmployees.length > 0 ? urlEmployees : initialUsers.map(u => u.id);
+    };
+
+    const [currentDate, setCurrentDate] = useState<Date>(getInitialDate);
+    const [view, setView] = useState<ViewType>(getInitialView);
+    
+    // --- FIX: Re-introducing the 'users' state variable ---
+    const [users, setUsers] = useState<User[]>(initialUsers);
+    
+    const [selectedUsers, setSelectedUsers] = useState<Array<string | number>>(getInitialSelection);
+    
     const [dayViewSelectionCache, setDayViewSelectionCache] = useState<Array<string | number>>(getInitialSelection);
     const [singleViewSelectionCache, setSingleViewSelectionCache] = useState<string | number | null>(() => {
         const initialSelection = getInitialSelection();
         return initialSelection.length > 0 ? initialSelection[0] : (initialUsers.length > 0 ? initialUsers[0].id : null);
     });
-    
-    const [selectedUsers, setSelectedUsers] = useState<Array<string | number>>(getInitialSelection);
     
     const [events, setEvents] = useState<SchedulerEvent[]>(DUMMY_EVENTS);
     const [selectedEvent, setSelectedEvent] = useState<SchedulerEvent | null>(null);
@@ -59,31 +80,22 @@ export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
 
     useEffect(() => {
         if (view === 'week' || view === 'month') {
-            if (singleViewSelectionCache) {
-                 setSelectedUsers([singleViewSelectionCache]);
-            } else if (users.length > 0) {
-                 const firstUserId = users[0].id;
-                 setSelectedUsers([firstUserId]);
-                 setSingleViewSelectionCache(firstUserId);
-            }
+            if (singleViewSelectionCache) { setSelectedUsers([singleViewSelectionCache]); }
         } else if (view === 'day') {
             setSelectedUsers(dayViewSelectionCache);
         }
     }, [view]);
 
-
-    const handleDragStart = (event: React.DragEvent, schedulerEvent: SchedulerEvent) => {
+    const handleDragStart = (event: React.DragEvent, schedulerEvent: SchedulerEvent) => { 
         setDraggedEvent(schedulerEvent);
         setIsDragging(true);
         event.dataTransfer.effectAllowed = 'move';
-    };
-
-    const handleDragEnd = () => {
+     };
+    const handleDragEnd = () => { 
         setDraggedEvent(null);
         setIsDragging(false);
     };
-
-    const handleDrop = (targetDate: Date, targetTime: string, targetUserId?: string | number) => {
+    const handleDrop = (targetDate: Date, targetTime: string, targetUserId?: string | number) => { 
         if (!draggedEvent) return;
         const eventDuration = draggedEvent.end.getTime() - draggedEvent.start.getTime();
         const [hours, minutes] = targetTime.split(':').map(Number);
@@ -97,20 +109,19 @@ export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
 
     useEffect(() => { setIsClient(true); }, []);
     
-    // --- FIX: This effect now syncs both date and employee selection to the URL ---
     useEffect(() => {
         if (!isClient) return;
         const params = new URLSearchParams(window.location.search);
         params.set('date', currentDate.toISOString());
+        params.set('view', view);
         
         if (selectedUsers.length > 0) {
             params.set('employees', selectedUsers.join(','));
         } else {
             params.delete('employees');
         }
-
-        router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
-    }, [currentDate, selectedUsers, isClient, router]); // Add selectedUsers and isClient to dependency array
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }, [currentDate, selectedUsers, view, isClient, router, pathname]);
 
     const navigateDate = (direction: number) => {
         const newDate = new Date(currentDate);
@@ -125,7 +136,7 @@ export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
         setView('day');
     };
 
-    const handleSaveEvent = (eventData: EventForm) => {
+    const handleSaveEvent = (eventData: EventForm) => { 
         const user = users.find(u => u.id === eventData.userId);
         const newEvent: SchedulerEvent = {
             id: selectedEvent?.id || Date.now(),
@@ -144,6 +155,7 @@ export const useScheduler = ({ initialUsers = [], initialDate, searchParams }: {
         setSelectedEvent(null);
     };
 
+    // This code should now work correctly as 'users' is defined in scope
     const visibleUsers = useMemo(() => users.filter(user => selectedUsers.includes(user.id)), [users, selectedUsers]);
     const visibleEvents = useMemo(() => events.filter(event => selectedUsers.includes(event.userId)), [events, selectedUsers]);
 
