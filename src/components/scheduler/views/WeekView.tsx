@@ -5,7 +5,6 @@ import React from 'react';
 import { SchedulerEvent } from '../types';
 import { getWeekDays, generateTimeSlots } from '../utils';
 
-// --- FIX: Updated props to include D&D handlers ---
 interface WeekViewProps {
   currentDate: Date;
   events: SchedulerEvent[];
@@ -13,7 +12,7 @@ interface WeekViewProps {
   onEventClick: (event: SchedulerEvent) => void;
   onDragStart: (event: React.DragEvent, schedulerEvent: SchedulerEvent) => void;
   onDragEnd: () => void;
-  onDrop: (targetDate: Date, targetTime: string) => void; // No userId needed for week view drop
+  onDrop: (targetDate: Date, targetTime: string) => void;
 }
 
 const HOUR_ROW_HEIGHT = 60; // in pixels
@@ -49,7 +48,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
       left: '4px',
       right: '4px',
       backgroundColor: event.color,
-      zIndex: 20, // Must be higher than drop zones
+      zIndex: 20,
       opacity: isDragging ? 0.5 : 1
     };
   };
@@ -65,51 +64,53 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
         ))}
       </div>
       <div className="flex-1 grid grid-cols-7">
-        {weekDays.map(day => (
-          <div key={day.toISOString()} className="relative border-r border-gray-200">
-            <div className="sticky top-0 bg-white z-30 p-2 border-b text-center h-14">
+        {weekDays.map((day, index) => (
+          <div key={day.toISOString()} className="flex flex-col">
+            <div className="sticky top-0 bg-white z-30 p-2 border-b text-center h-14 flex-shrink-0">
               <div className="text-xs text-gray-500">{day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</div>
               <div className={`mt-1 text-xl font-semibold ${isSameDay(day, new Date()) ? 'text-blue-600' : ''}`}>
                 {day.getDate()}
               </div>
             </div>
 
-            {/* Background grid lines */}
-            <div className="absolute inset-0 top-14">
+            <div className={`relative ${index < weekDays.length - 1 ? 'border-r border-gray-200' : ''}`}>
+                {/* Hourly grid lines to give the container height */}
                 {hourTimeSlots.map(time => (
                     <div key={time} style={{ height: `${HOUR_ROW_HEIGHT}px` }} className="border-t border-gray-100"></div>
                 ))}
-            </div>
-
-            {/* --- FIX: Drop Zone Grid --- */}
-            <div className="absolute inset-0 top-14 z-10">
-                {dropTimeSlots.map(time => (
-                    <div 
-                        key={time}
-                        className="h-[15px]" // 15px height for 15-min intervals
-                        onDragOver={handleDragOver}
-                        onDrop={() => onDrop(day, time)}
-                    />
-                ))}
-            </div>
             
-            {/* Events for this day */}
-            <div className="absolute inset-0 top-14">
-              {events
-                .filter(event => isSameDay(event.start, day))
-                .map(event => (
-                  <div
-                    key={event.id}
-                    draggable={true} // --- Make event draggable ---
-                    onDragStart={(e) => onDragStart(e, event)}
-                    onDragEnd={onDragEnd}
-                    onClick={() => onEventClick(event)}
-                    style={getEventStyle(event)}
-                    className="p-1 rounded text-white text-xs cursor-grab hover:opacity-80 transition-opacity"
-                  >
-                    <p className="font-bold truncate">{event.title}</p>
-                  </div>
-                ))}
+                {/* Drop zones are an absolute overlay */}
+                <div className="absolute inset-0 top-0 z-10">
+                    {dropTimeSlots.map(time => (
+                        <div 
+                            key={time}
+                            className="h-[15px]"
+                            onDragOver={handleDragOver}
+                            onDrop={() => onDrop(day, time)}
+                        />
+                    ))}
+                </div>
+                
+                {/* --- FIX: Events are now positioned directly inside the main relative container --- */}
+                {/* This removes the extra absolute container that was causing the misalignment */}
+                {events
+                  .filter(event => isSameDay(event.start, day))
+                  .map(event => (
+                    <div
+                      key={event.id}
+                      draggable={true}
+                      onDragStart={(e) => onDragStart(e, event)}
+                      onDragEnd={onDragEnd}
+                      onClick={() => onEventClick(event)}
+                      style={getEventStyle(event)}
+                      className="p-1 rounded text-white text-xs cursor-grab hover:opacity-80 transition-opacity"
+                    >
+                      <p className="font-bold truncate">{event.title}</p>
+                      <p className="opacity-80 truncate">
+                        {event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </p>
+                    </div>
+                  ))}
             </div>
           </div>
         ))}
