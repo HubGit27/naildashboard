@@ -7,7 +7,7 @@ const menuItems = [
     title: "MENU",
     items: [
       {
-        icon: "/home.png",
+        icon: "/calendar.png",
         label: "Calander",
         href: "/calander",
         visible: ["admin", "teacher", "student", "parent"],
