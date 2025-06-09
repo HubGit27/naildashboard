@@ -4,7 +4,7 @@ import Announcements from "@/components/Announcements";
 import EventCalendarContainer from "@/components/EventCalendarContainer";
 import ResizeableColumnContainer from "@/components/ResizeableColumnContainer";
 import CollapsiblePanel from "@/components/CollapsiblePanel";
-import Scheduler from "@/components/scheduler/Scheduler"; // <-- Import the new scheduler
+import Scheduler from "@/components/scheduler/Scheduler";
 import prisma from "@/lib/prisma";
 
 // This is a Server Component - its only job is data fetching and layout

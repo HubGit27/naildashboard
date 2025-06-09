@@ -43,7 +43,7 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
     handleUserToggle,
     showUserModal,
     setShowUserModal,
-  } = useScheduler({ initialUsers, initialDate, searchParams });
+  } = useScheduler({ initialUsers, searchParams });
 
   // --- FIX: Determine the name of the single selected user ---
   const viewingUserName = useMemo(() => {

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { User, SchedulerEvent, EventForm, ViewType } from '../types';
 
 const today = new Date();
@@ -11,46 +11,112 @@ const DUMMY_EVENTS: SchedulerEvent[] = [
     { id: 2, title: 'Project Review', start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0), end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 30), color: '#ef4444', userId: '2' },
 ];
 
+// Local storage keys
+const STORAGE_KEYS = {
+    DATE: 'scheduler_date',
+    VIEW: 'scheduler_view',
+    SELECTED_USERS: 'scheduler_selected_users',
+} as const;
+
+// Safe localStorage operations
+const safeLocalStorage = {
+    get: (key: string, fallback?: string) => {
+        if (typeof window === 'undefined') return fallback;
+        try {
+            return localStorage.getItem(key) || fallback;
+        } catch {
+            return fallback;
+        }
+    },
+    set: (key: string, value: string) => {
+        if (typeof window === 'undefined') return;
+        try {
+            localStorage.setItem(key, value);
+        } catch {
+            // Silently fail if localStorage is not available
+        }
+    }
+};
+
 export const useScheduler = ({ initialUsers = [], searchParams }: {
     initialUsers: User[];
     searchParams: { [key:string]: string | undefined };
 }) => {
     const router = useRouter();
     const pathname = usePathname();
+    const urlSearchParams = useSearchParams();
     const [isClient, setIsClient] = useState(false);
     
+    // Enhanced parameter parsing with localStorage fallback
     const getInitialDate = () => {
-        const urlDate = searchParams.date;
+        // Priority: URL params -> localStorage -> current date
+        const urlDate = searchParams.date || urlSearchParams.get('date');
         if (urlDate) {
             const parsed = new Date(urlDate);
             if (!isNaN(parsed.getTime())) {
                 return parsed;
             }
         }
+        
+        // Try localStorage as fallback
+        const storedDate = safeLocalStorage.get(STORAGE_KEYS.DATE);
+        if (storedDate) {
+            const parsed = new Date(storedDate);
+            if (!isNaN(parsed.getTime())) {
+                return parsed;
+            }
+        }
+        
         return new Date();
     };
 
-    const getInitialView = () => {
-        const urlView = searchParams.view;
+    const getInitialView = (): ViewType => {
+        // Priority: URL params -> localStorage -> 'day'
+        const urlView = searchParams.view || urlSearchParams.get('view');
         if (urlView === 'day' || urlView === 'week' || urlView === 'month') {
             return urlView;
         }
+        
+        const storedView = safeLocalStorage.get(STORAGE_KEYS.VIEW);
+        if (storedView === 'day' || storedView === 'week' || storedView === 'month') {
+            return storedView;
+        }
+        
         return 'day';
     };
 
     const getInitialSelection = () => {
-        const urlEmployees = searchParams.employees?.split(',');
-        return urlEmployees && urlEmployees.length > 0 ? urlEmployees : initialUsers.map(u => u.id);
+        // Priority: URL params -> localStorage -> all users
+        const urlEmployees = searchParams.employees || urlSearchParams.get('employees');
+        let employeeIds = urlEmployees?.split(',').filter(Boolean);
+        
+        if (!employeeIds || employeeIds.length === 0) {
+            const storedUsers = safeLocalStorage.get(STORAGE_KEYS.SELECTED_USERS);
+            if (storedUsers) {
+                employeeIds = storedUsers.split(',').filter(Boolean);
+            }
+        }
+        
+        if (employeeIds && employeeIds.length > 0) {
+            // Validate that the employee IDs exist in initialUsers
+            const validIds = employeeIds.filter(id => 
+                initialUsers.some(user => user.id.toString() === id)
+            );
+            if (validIds.length > 0) {
+                return validIds;
+            }
+        }
+        
+        // Fallback to all users
+        return initialUsers.map(u => u.id.toString());
     };
 
     const [currentDate, setCurrentDate] = useState<Date>(getInitialDate);
     const [view, setView] = useState<ViewType>(getInitialView);
-    
-    // --- FIX: Re-introducing the 'users' state variable ---
     const [users, setUsers] = useState<User[]>(initialUsers);
-    
     const [selectedUsers, setSelectedUsers] = useState<Array<string | number>>(getInitialSelection);
     
+    // Cache for different view modes
     const [dayViewSelectionCache, setDayViewSelectionCache] = useState<Array<string | number>>(getInitialSelection);
     const [singleViewSelectionCache, setSingleViewSelectionCache] = useState<string | number | null>(() => {
         const initialSelection = getInitialSelection();
@@ -64,6 +130,26 @@ export const useScheduler = ({ initialUsers = [], searchParams }: {
     
     const [draggedEvent, setDraggedEvent] = useState<SchedulerEvent | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+
+    // Re-sync with URL parameters when they change
+    useEffect(() => {
+        if (!isClient) return;
+        
+        const newDate = getInitialDate();
+        const newView = getInitialView();
+        const newSelection = getInitialSelection();
+        
+        setCurrentDate(newDate);
+        setView(newView);
+        setSelectedUsers(newSelection);
+        
+        // Update caches based on view
+        if (newView === 'day') {
+            setDayViewSelectionCache(newSelection);
+        } else {
+            setSingleViewSelectionCache(newSelection.length > 0 ? newSelection[0] : null);
+        }
+    }, [urlSearchParams, isClient, initialUsers]);
 
     const handleUserToggle = (userId: string | number) => {
         if (view === 'day') {
@@ -80,21 +166,25 @@ export const useScheduler = ({ initialUsers = [], searchParams }: {
 
     useEffect(() => {
         if (view === 'week' || view === 'month') {
-            if (singleViewSelectionCache) { setSelectedUsers([singleViewSelectionCache]); }
+            if (singleViewSelectionCache) { 
+                setSelectedUsers([singleViewSelectionCache]); 
+            }
         } else if (view === 'day') {
             setSelectedUsers(dayViewSelectionCache);
         }
-    }, [view]);
+    }, [view, dayViewSelectionCache, singleViewSelectionCache]);
 
     const handleDragStart = (event: React.DragEvent, schedulerEvent: SchedulerEvent) => { 
         setDraggedEvent(schedulerEvent);
         setIsDragging(true);
         event.dataTransfer.effectAllowed = 'move';
-     };
+    };
+    
     const handleDragEnd = () => { 
         setDraggedEvent(null);
         setIsDragging(false);
     };
+    
     const handleDrop = (targetDate: Date, targetTime: string, targetUserId?: string | number) => { 
         if (!draggedEvent) return;
         const eventDuration = draggedEvent.end.getTime() - draggedEvent.start.getTime();
@@ -102,25 +192,49 @@ export const useScheduler = ({ initialUsers = [], searchParams }: {
         const newStart = new Date(targetDate);
         newStart.setHours(hours, minutes, 0, 0);
         const newEnd = new Date(newStart.getTime() + eventDuration);
-        const updatedEvent: SchedulerEvent = { ...draggedEvent, start: newStart, end: newEnd, userId: targetUserId || draggedEvent.userId };
+        const updatedEvent: SchedulerEvent = { 
+            ...draggedEvent, 
+            start: newStart, 
+            end: newEnd, 
+            userId: targetUserId || draggedEvent.userId 
+        };
         setEvents(events.map(e => e.id === draggedEvent.id ? updatedEvent : e));
         handleDragEnd();
     };
 
-    useEffect(() => { setIsClient(true); }, []);
+    useEffect(() => { 
+        setIsClient(true); 
+    }, []);
     
+    // Enhanced URL update with localStorage persistence
     useEffect(() => {
         if (!isClient) return;
-        const params = new URLSearchParams(window.location.search);
-        params.set('date', currentDate.toISOString());
-        params.set('view', view);
         
-        if (selectedUsers.length > 0) {
-            params.set('employees', selectedUsers.join(','));
-        } else {
-            params.delete('employees');
-        }
-        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        const timeoutId = setTimeout(() => {
+            const params = new URLSearchParams();
+            
+            // Always set these parameters
+            params.set('date', currentDate.toISOString());
+            params.set('view', view);
+            
+            if (selectedUsers.length > 0) {
+                params.set('employees', selectedUsers.map(id => id.toString()).join(','));
+            }
+            
+            // Save to localStorage as backup
+            safeLocalStorage.set(STORAGE_KEYS.DATE, currentDate.toISOString());
+            safeLocalStorage.set(STORAGE_KEYS.VIEW, view);
+            safeLocalStorage.set(STORAGE_KEYS.SELECTED_USERS, selectedUsers.map(id => id.toString()).join(','));
+            
+            const newUrl = `${pathname}?${params.toString()}`;
+            
+            // Only update if URL actually changed
+            if (window.location.pathname + '?' + params.toString() !== window.location.pathname + window.location.search) {
+                router.replace(newUrl, { scroll: false });
+            }
+        }, 100); // Debounce URL updates
+        
+        return () => clearTimeout(timeoutId);
     }, [currentDate, selectedUsers, view, isClient, router, pathname]);
 
     const navigateDate = (direction: number) => {
@@ -155,9 +269,15 @@ export const useScheduler = ({ initialUsers = [], searchParams }: {
         setSelectedEvent(null);
     };
 
-    // This code should now work correctly as 'users' is defined in scope
-    const visibleUsers = useMemo(() => users.filter(user => selectedUsers.includes(user.id)), [users, selectedUsers]);
-    const visibleEvents = useMemo(() => events.filter(event => selectedUsers.includes(event.userId)), [events, selectedUsers]);
+    const visibleUsers = useMemo(() => 
+        users.filter(user => selectedUsers.includes(user.id)), 
+        [users, selectedUsers]
+    );
+    
+    const visibleEvents = useMemo(() => 
+        events.filter(event => selectedUsers.includes(event.userId)), 
+        [events, selectedUsers]
+    );
 
     return {
         isClient,
