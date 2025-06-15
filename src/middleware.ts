@@ -7,15 +7,14 @@ const matchers = Object.keys(routeAccessMap).map((route) => ({
   allowedRoles: routeAccessMap[route],
 }));
 
-console.log("matchers");
-console.log(matchers);
+export default clerkMiddleware(async (auth, req) => {
+  // Skip authentication for all API routes FIRST
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
 
-export default clerkMiddleware((auth, req) => {
-  // if (isProtectedRoute(req)) auth().protect()
-
-  const { sessionClaims } = auth();
-  console.log("sessionClaims")
-  console.log(sessionClaims?.metadata)
+  // Only call auth() after confirming it's not an API route
+  const { sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   for (const { matcher, allowedRoles } of matchers) {
