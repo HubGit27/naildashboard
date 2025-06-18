@@ -4,6 +4,23 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// Function to add CORS headers to a response
+function setCorsHeaders(response: NextResponse) {
+  // Allow requests from any origin. For better security in production,
+  // you might want to replace '*' with your specific frontend domain.
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  return response;
+}
+
+// Handle OPTIONS requests for CORS preflight
+export async function OPTIONS() {
+  const response = new NextResponse(null, { status: 200 });
+  return setCorsHeaders(response);
+}
+
+// Handle GET requests
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const employeeId = searchParams.get('employeeId');
@@ -11,7 +28,8 @@ export async function GET(request: Request) {
   const durationStr = searchParams.get('duration');
 
   if (!employeeId || !dateStr || !durationStr) {
-    return NextResponse.json({ error: 'Missing required query parameters' }, { status: 400 });
+    const errorResponse = NextResponse.json({ error: 'Missing required query parameters' }, { status: 400 });
+    return setCorsHeaders(errorResponse);
   }
 
   const date = new Date(dateStr);
@@ -25,7 +43,8 @@ export async function GET(request: Request) {
     });
 
     if (!workSchedule) {
-      return NextResponse.json([]); // No availability if not scheduled to work
+      // No availability if not scheduled to work
+      return setCorsHeaders(NextResponse.json([]));
     }
     
     // 2. Fetch existing appointments for the day
@@ -76,10 +95,12 @@ export async function GET(request: Request) {
       }
       currentSlot.setMinutes(currentSlot.getMinutes() + slotInterval);
     }
-    return NextResponse.json(availableSlots);
+    
+    return setCorsHeaders(NextResponse.json(availableSlots));
 
   } catch (error) {
     console.error('Failed to fetch availability:', error);
-    return NextResponse.json({ error: 'Error fetching availability' }, { status: 500 });
+    const errorResponse = NextResponse.json({ error: 'Error fetching availability' }, { status: 500 });
+    return setCorsHeaders(errorResponse);
   }
 }
