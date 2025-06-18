@@ -9,7 +9,7 @@ const matchers = Object.keys(routeAccessMap).map((route) => ({
 
 export default clerkMiddleware(async (auth, req) => {
   // Skip authentication for all API routes FIRST
-  if (req.nextUrl.pathname.startsWith('/api/')) {
+  if (req.nextUrl.pathname.startsWith('/server-api/')) {
     return NextResponse.next();
   }
 
