@@ -1,15 +1,32 @@
-
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
+// Remove the .uuid() checks to allow for custom string IDs like "EMP-001"
 const createAppointmentSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
   customerPhone: z.string().min(1, "Customer phone number is required"),
-  employeeId: z.string().uuid("Invalid employee ID"),
+  employeeId: z.string().min(1, "Invalid employee ID"),
   startTime: z.string().datetime("Invalid start time format"),
-  serviceIds: z.array(z.string().uuid()).min(1, "At least one service must be selected"),
+  serviceIds: z.array(z.string().min(1)).min(1, "At least one service must be selected"),
 });
+
+// --- NO OTHER CHANGES ARE NEEDED BELOW THIS LINE ---
+
+// Function to add CORS headers to a response
+function setCorsHeaders(response: NextResponse) {
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  return response;
+}
+
+// Handle OPTIONS requests for CORS preflight
+export async function OPTIONS() {
+  const response = new NextResponse(null, { status: 200 });
+  return setCorsHeaders(response);
+}
+
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +34,8 @@ export async function POST(request: Request) {
     const validation = createAppointmentSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json({ error: validation.error.format() }, { status: 400 });
+      const errorResponse = NextResponse.json({ error: validation.error.format() }, { status: 400 });
+      return setCorsHeaders(errorResponse);
     }
 
     const { customerName, customerPhone, employeeId, startTime, serviceIds } = validation.data;
@@ -77,10 +95,12 @@ export async function POST(request: Request) {
 
     // TODO: Trigger a WebSocket event here to notify the scheduler of the new appointment.
 
-    return NextResponse.json(newAppointment, { status: 201 });
+    const successResponse = NextResponse.json(newAppointment, { status: 201 });
+    return setCorsHeaders(successResponse);
 
   } catch (error: any) {
     console.error('Failed to create appointment:', error);
-    return NextResponse.json({ error: error.message || 'Error creating appointment' }, { status: 500 });
+    const errorResponse = NextResponse.json({ error: error.message || 'Error creating appointment' }, { status: 500 });
+    return setCorsHeaders(errorResponse);
   }
 }
