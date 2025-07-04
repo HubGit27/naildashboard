@@ -1,7 +1,7 @@
 // components/scheduler/views/DayView.tsx
 "use client";
 
-import React from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { User, SchedulerEvent } from '../types';
 import { generateTimeSlots } from '../utils';
 
@@ -18,6 +18,7 @@ interface DayViewProps {
 
 const HOUR_ROW_HEIGHT = 60; // in pixels
 const DROP_INTERVAL = 15; // Drop sensitivity in minutes
+const MIN_COLUMN_WIDTH = 120; // Minimum width for a column in pixels
 
 const isSameDay = (date1: Date, date2: Date): boolean => {
     return date1.getFullYear() === date2.getFullYear() &&
@@ -28,11 +29,68 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
 export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, isDragging, onEventClick, onDragStart, onDragEnd, onDrop }) => {
     const hourTimeSlots = generateTimeSlots(60); 
     const dropTimeSlots = generateTimeSlots(DROP_INTERVAL);
+    
+        const [columnWidths, setColumnWidths] = useState<number[]>([]);
+
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (containerRef.current && users.length > 0) {
+            const containerWidth = containerRef.current.offsetWidth;
+            const widthPerUser = Math.max(MIN_COLUMN_WIDTH, containerWidth / users.length);
+            setColumnWidths(Array(users.length).fill(widthPerUser));
+        }
+    }, [users.length]);
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
     };
+
+    const ResizableHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
+        <div
+            className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-gray-300 hover:bg-blue-500 transition-colors z-30"
+            onMouseDown={onMouseDown}
+        />
+    );
+
+    const handleMouseDown = useCallback((index: number) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const leftColumn = containerRef.current?.children[index] as HTMLDivElement;
+        const rightColumn = containerRef.current?.children[index + 1] as HTMLDivElement;
+
+        if (!leftColumn || !rightColumn) return;
+
+        const leftStartWidth = leftColumn.getBoundingClientRect().width;
+        const rightStartWidth = rightColumn.getBoundingClientRect().width;
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            const currentX = moveEvent.clientX;
+            const deltaX = currentX - startX;
+
+            const newLeftWidth = leftStartWidth + deltaX;
+            const newRightWidth = rightStartWidth - deltaX;
+
+            if (newLeftWidth < MIN_COLUMN_WIDTH || newRightWidth < MIN_COLUMN_WIDTH) return;
+
+            setColumnWidths(prevWidths => {
+                const newWidths = [...prevWidths];
+                newWidths[index] = newLeftWidth;
+                newWidths[index + 1] = newRightWidth;
+                return newWidths;
+            });
+        };
+
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }, []);
+
 
     if (users.length === 0) {
         return <div className="p-8 text-center text-gray-500">Select a user to see their schedule.</div>;
@@ -49,9 +107,9 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
                 ))}
             </div>
 
-            <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${users.length}, minmax(200px, 1fr))` }}>
+            <div ref={containerRef} className="flex-1 grid" style={{ gridTemplateColumns: columnWidths.length > 0 ? columnWidths.map(w => `${w}px`).join(' ') : `repeat(${users.length}, 1fr)` }}>
                 {users.map((user, index) => (
-                    <div key={user.id} className="flex flex-col">
+                    <div key={user.id} className="relative flex flex-col">
                         {/* Header is sticky and separate from the scrollable content */}
                         <div className="p-2 h-14 border-b border-gray-200 sticky top-0 bg-gray-50 z-20 text-center font-semibold flex-shrink-0">
                             {user.name}
@@ -115,9 +173,13 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
                                 }
                             </div>
                         </div>
+                        {index < users.length - 1 && (
+                            <ResizableHandle onMouseDown={handleMouseDown(index)} />
+                        )}
                     </div>
                 ))}
             </div>
         </div>
     );
 };
+
