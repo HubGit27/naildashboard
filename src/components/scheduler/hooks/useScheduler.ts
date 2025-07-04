@@ -285,7 +285,7 @@ export const useScheduler = ({
         const newEvent: SchedulerEvent = {
             id: selectedEvent?.id || crypto.randomUUID(),
             title: eventData.title,
-            start: new new Date(eventData.start),
+            start: new Date(eventData.start),
             end: new Date(eventData.end),
             color: user ? user.color : '#3b82f6',
             userId: eventData.userId
