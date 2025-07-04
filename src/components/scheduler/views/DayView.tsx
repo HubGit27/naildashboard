@@ -10,6 +10,7 @@ interface DayViewProps {
   users: User[];
   events: SchedulerEvent[];
   isDragging: boolean;
+  draggedEvent: SchedulerEvent | null;
   onEventClick: (event: SchedulerEvent) => void;
   onDragStart: (event: React.DragEvent, schedulerEvent: SchedulerEvent) => void;
   onDragEnd: () => void;
@@ -26,13 +27,15 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
            date1.getDate() === date2.getDate();
 };
 
-export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, isDragging, onEventClick, onDragStart, onDragEnd, onDrop }) => {
-    const hourTimeSlots = generateTimeSlots(60); 
-    const dropTimeSlots = generateTimeSlots(DROP_INTERVAL);
+export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, isDragging, draggedEvent, onEventClick, onDragStart, onDragEnd, onDrop }) => {
+    const hourTimeSlots = generateTimeSlots(60);
     
-        const [columnWidths, setColumnWidths] = useState<number[]>([]);
+    const [columnWidths, setColumnWidths] = useState<number[]>([]);
+    const [dragOverInfo, setDragOverInfo] = useState<{ userId: string | number; time: string } | null>(null);
+    const [dragStartOffset, setDragStartOffset] = useState(0);
 
     const containerRef = useRef<HTMLDivElement>(null);
+    const userColumnRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     useEffect(() => {
         if (containerRef.current && users.length > 0) {
@@ -40,11 +43,50 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
             const widthPerUser = Math.max(MIN_COLUMN_WIDTH, containerWidth / users.length);
             setColumnWidths(Array(users.length).fill(widthPerUser));
         }
-    }, [users.length]);
+        userColumnRefs.current = userColumnRefs.current.slice(0, users.length);
+    }, [users]);
 
-    const handleDragOver = (e: React.DragEvent) => {
+    const handleLocalDragStart = (e: React.DragEvent<HTMLDivElement>, event: SchedulerEvent) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const offset = e.clientY - rect.top;
+        setDragStartOffset(offset);
+        onDragStart(e, event); // Propagate to parent
+    };
+
+    const calculateDropTime = (e: React.DragEvent, userIndex: number): string => {
+        const userColumn = userColumnRefs.current[userIndex];
+        if (!userColumn) return "00:00";
+
+        const rect = userColumn.getBoundingClientRect();
+        const offsetY = e.clientY - rect.top - dragStartOffset -50; // Adjust for initial drag offset
+        
+        const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60);
+        const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;
+        const hour = Math.floor(interval / 60).toString().padStart(2, '0');
+        const minute = (interval % 60).toString().padStart(2, '0');
+        
+        return `${hour}:${minute}`;
+    };
+
+    const handleDragOver = (e: React.DragEvent, userId: string | number, userIndex: number) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+        const time = calculateDropTime(e, userIndex);
+        if (!dragOverInfo || dragOverInfo.userId !== userId || dragOverInfo.time !== time) {
+            setDragOverInfo({ userId, time });
+        }
+    };
+
+    const handleDragLeave = () => {
+        setDragOverInfo(null);
+    };
+
+    const handleDrop = (e: React.DragEvent, userId: string | number, userIndex: number) => {
+        e.preventDefault();
+        const time = calculateDropTime(e, userIndex);
+        onDrop(currentDate, time, userId);
+        setDragOverInfo(null);
+        setDragStartOffset(0);
     };
 
     const ResizableHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
@@ -68,7 +110,6 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const currentX = moveEvent.clientX;
             const deltaX = currentX - startX;
-
             const newLeftWidth = leftStartWidth + deltaX;
             const newRightWidth = rightStartWidth - deltaX;
 
@@ -91,11 +132,10 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
         document.addEventListener('mouseup', handleMouseUp);
     }, []);
 
-
     if (users.length === 0) {
         return <div className="p-8 text-center text-gray-500">Select a user to see their schedule.</div>;
     }
-    
+
     return (
         <div className="flex h-full bg-white">
             <div className="w-16 flex-shrink-0 border-r border-gray-200">
@@ -109,33 +149,36 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
 
             <div ref={containerRef} className="flex-1 grid" style={{ gridTemplateColumns: columnWidths.length > 0 ? columnWidths.map(w => `${w}px`).join(' ') : `repeat(${users.length}, 1fr)` }}>
                 {users.map((user, index) => (
-                    <div key={user.id} className="relative flex flex-col">
-                        {/* Header is sticky and separate from the scrollable content */}
+                    <div 
+                        key={user.id} 
+                        ref={el => userColumnRefs.current[index] = el}
+                        className="relative flex flex-col"
+                        onDragOver={(e) => handleDragOver(e, user.id, index)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, user.id, index)}
+                    >
                         <div className="p-2 h-14 border-b border-gray-200 sticky top-0 bg-gray-50 z-20 text-center font-semibold flex-shrink-0">
                             {user.name}
                         </div>
                         
-                        {/* --- FIX: New container for scrollable content --- */}
-                        {/* This div is relative, contains the border, and will now have a defined height from its non-absolute children */}
                         <div className={`relative ${index < users.length - 1 ? 'border-r border-gray-200' : ''}`}>
-                            {/* The hourly grid lines are now in the normal document flow, giving this container height */}
                             {hourTimeSlots.map(time => (
                                 <div key={time} style={{ height: `${HOUR_ROW_HEIGHT}px` }} className="border-t border-gray-100"></div>
                             ))}
 
-                            {/* Drop zones are absolutely positioned to overlay the grid */}
-                            <div className="absolute inset-0 top-0 z-10">
-                                {dropTimeSlots.map(time => (
-                                    <div 
-                                        key={time}
-                                        className="h-[15px]"
-                                        onDragOver={handleDragOver}
-                                        onDrop={() => onDrop(currentDate, time, user.id)}
-                                    />
-                                ))}
-                            </div>
+                            {dragOverInfo && dragOverInfo.userId === user.id && draggedEvent && (
+                                <div 
+                                    className="absolute bg-blue-100 opacity-50 pointer-events-none"
+                                    style={{
+                                        top: `${(parseInt(dragOverInfo.time.split(':')[0]) * 60 + parseInt(dragOverInfo.time.split(':')[1])) / 60 * HOUR_ROW_HEIGHT}px`,
+                                        height: `${((draggedEvent.end.getTime() - draggedEvent.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT}px`,
+                                        left: '0',
+                                        right: '0',
+                                        zIndex: 5
+                                    }}
+                                />
+                            )}
 
-                            {/* Events are absolutely positioned to overlay the grid */}
                             <div className="absolute inset-0 top-0 z-20 pointer-events-none">
                                 {events
                                     .filter(event => event.userId === user.id && isSameDay(event.start, currentDate))
@@ -150,7 +193,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
                                             <div 
                                                 key={event.id}
                                                 draggable={true}
-                                                onDragStart={(e) => onDragStart(e, event)}
+                                                onDragStart={(e) => handleLocalDragStart(e, event)}
                                                 onDragEnd={onDragEnd}
                                                 onClick={() => onEventClick(event)}
                                                 className="absolute p-2 rounded text-white text-xs cursor-grab shadow-md pointer-events-auto"

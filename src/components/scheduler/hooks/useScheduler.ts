@@ -330,7 +330,7 @@ export const useScheduler = ({
         handleSaveEvent,
         handleDayClickInMonthView,
         isDragging,
-        draggedEvent,
+        draggedEvent, // Expose draggedEvent
         handleDragStart,
         handleDragEnd,
         handleDrop,

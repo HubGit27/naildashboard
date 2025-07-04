@@ -36,6 +36,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     handleSaveEvent,
     handleDayClickInMonthView,
     isDragging,
+    draggedEvent,
     handleDragStart,
     handleDragEnd,
     handleDrop,
@@ -83,6 +84,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
             events={visibleEvents}
             onEventClick={handleEventClick}
             isDragging={isDragging}
+            draggedEvent={draggedEvent}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDrop={handleDrop}
