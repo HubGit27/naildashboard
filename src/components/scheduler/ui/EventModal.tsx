@@ -22,7 +22,36 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
     userId: users[0]?.id || '',
     color: users[0]?.color || '#3b82f6',
   });
+  const [localStart, setLocalStart] = useState('');
+  const [localEnd, setLocalEnd] = useState('');
 
+  /**
+   * Converts a UTC date string to a local datetime-local compatible string.
+   * param utcDateString The UTC date string.
+   * returns A string in "YYYY-MM-DDTHH:mm" format in the user's local time.
+   */
+  const formatForDateTimeLocal = (utcDateString: string): string => {
+    if (!utcDateString) return '';
+    console.log(utcDateString)
+    const utcString = utcDateString.endsWith('Z') ? utcDateString : utcDateString + 'Z';
+    const date = new Date(utcString);
+    console.log(date)
+    // Manually build the string in local time
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // months are 0-indexed
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    console.log(`${year}-${month}-${day}T${hours}:${minutes}`)
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+  useEffect(() => {
+    setLocalStart(formatForDateTimeLocal(formState.start));
+  }, [formState.start]);
+
+  useEffect(() => {
+    setLocalEnd(formatForDateTimeLocal(formState.end));
+  }, [formState.end]);
   useEffect(() => {
     if (eventData) {
       setFormState({
@@ -85,11 +114,27 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
             </div>
             <div>
               <label htmlFor="start" className="block text-sm font-medium text-gray-700">Start Time</label>
-              <input type="datetime-local" name="start" id="start" value={formState.start} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required />
+              <input
+                type="datetime-local"
+                name="start"
+                id="start"
+                value={localStart}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                required
+              />
             </div>
             <div>
               <label htmlFor="end" className="block text-sm font-medium text-gray-700">End Time</label>
-              <input type="datetime-local" name="end" id="end" value={formState.end} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required />
+              <input
+                type="datetime-local"
+                name="end"
+                id="end"
+                value={localEnd}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                required
+              />
             </div>
           </div>
           <div className="mt-6 flex justify-between items-center">

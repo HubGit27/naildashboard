@@ -95,7 +95,6 @@ export async function GET(request: Request) {
       }
       currentSlot.setMinutes(currentSlot.getMinutes() + slotInterval);
     }
-    
     return setCorsHeaders(NextResponse.json(availableSlots));
 
   } catch (error) {

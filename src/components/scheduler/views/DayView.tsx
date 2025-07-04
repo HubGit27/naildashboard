@@ -165,7 +165,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
                                             >
                                                 <p className="font-bold truncate">{event.title}</p>
                                                 <p className="opacity-80 truncate">
-                                                    {event.start.toISOString().slice(0, 16)} - {event.end.toISOString().slice(0, 16)}
+                                                    {event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                 </p>
                                             </div>
                                         )
