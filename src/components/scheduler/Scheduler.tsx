@@ -1,7 +1,7 @@
 // components/scheduler/Scheduler.tsx
 "use client";
 
-import React, { useMemo } from 'react'; // Import useMemo
+import React, { useMemo } from 'react';
 import { useScheduler } from './hooks/useScheduler';
 import { User, SchedulerEvent } from './types';
 
@@ -14,11 +14,11 @@ import { MonthView } from './views/MonthView';
 
 interface SchedulerProps {
   initialUsers: User[];
-  initialDate?: string;
+
   searchParams: { [key: string]: string | undefined };
 }
 
-const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, searchParams }) => {
+const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
   const {
     isClient,
     currentDate,
@@ -43,9 +43,10 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
     handleUserToggle,
     showUserModal,
     setShowUserModal,
+    isLoading,
+    error,
   } = useScheduler({ initialUsers, searchParams });
 
-  // --- FIX: Determine the name of the single selected user ---
   const viewingUserName = useMemo(() => {
     if (view !== 'day' && selectedUsers.length === 1) {
       const selectedUser = users.find(user => user.id === selectedUsers[0]);
@@ -53,7 +54,6 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
     }
     return null;
   }, [users, selectedUsers, view]);
-
 
   const handleAddEventClick = () => {
     setSelectedEvent(null);
@@ -68,6 +68,13 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
   };
 
   const renderView = () => {
+    if (isLoading) {
+        return <div className="p-8 text-center">Loading Scheduler...</div>;
+    }
+    if (error) {
+        return <div className="p-8 text-center text-red-500">Error: {error}</div>;
+    }
+
     switch (view) {
       case 'day':
         return <DayView 
@@ -102,7 +109,7 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
   };
 
   if (!isClient) {
-    return <div className="p-8 text-center">Loading Scheduler...</div>;
+    return <div className="p-8 text-center">Initializing Scheduler...</div>;
   }
 
   return (
@@ -110,7 +117,7 @@ const Scheduler: React.FC<SchedulerProps> = ({ initialUsers, initialDate, search
       <SchedulerHeader
         currentDate={currentDate}
         view={view}
-        viewingUserName={viewingUserName} // Pass the name to the header
+        viewingUserName={viewingUserName}
         onNavigate={navigateDate}
         onSetView={setView}
         onToday={() => setCurrentDate(new Date())}

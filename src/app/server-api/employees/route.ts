@@ -4,6 +4,18 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// // Function to generate a consistent color from a string (e.g., user ID)
+// const generateColor = (id: string): string => {
+//     let hash = 0;
+//     for (let i = 0; i < id.length; i++) {
+//         hash = id.charCodeAt(i) + ((hash << 5) - hash);
+//     }
+//     const c = (hash & 0x00FFFFFF)
+//         .toString(16)
+//         .toUpperCase();
+//     return "#" + "00000".substring(0, 6 - c.length) + c;
+// };
+
 // Function to add CORS headers to a response
 function setCorsHeaders(response: NextResponse) {
   // Allow requests from any origin. For better security in production,
@@ -29,6 +41,7 @@ export async function GET() {
         id: true,
         firstName: true,
         lastName: true,
+        //img: true, // Select the img field for the avatar
       },
       orderBy: {
         firstName: 'asc',

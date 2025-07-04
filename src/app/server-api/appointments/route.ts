@@ -27,6 +27,27 @@ export async function OPTIONS() {
   return setCorsHeaders(response);
 }
 
+export async function GET() {
+    try {
+        const appointments = await prisma.appointment.findMany({
+            include: {
+                customer: true,
+                employee: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+            },
+        });
+        const response = NextResponse.json(appointments);
+        return setCorsHeaders(response);
+    } catch (error) {
+        console.error('Failed to fetch appointments:', error);
+        const errorResponse = NextResponse.json({ error: 'Failed to fetch appointments' }, { status: 500 });
+        return setCorsHeaders(errorResponse);
+    }
+}
 
 export async function POST(request: Request) {
   try {

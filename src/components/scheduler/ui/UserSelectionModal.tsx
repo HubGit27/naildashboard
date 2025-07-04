@@ -53,7 +53,7 @@ export const UserSelectionModal: React.FC<UserSelectionModalProps> = ({ isOpen, 
                                         className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
                                         style={{ backgroundColor: user.color }}
                                     >
-                                        {user.avatar}
+                                        {/* {user.avatar} */}
                                     </div>
                                     <span className="font-medium text-gray-700">{user.name}</span>
                                 </label>
