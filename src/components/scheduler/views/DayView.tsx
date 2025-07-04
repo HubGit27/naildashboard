@@ -58,7 +58,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
         if (!userColumn) return "00:00";
 
         const rect = userColumn.getBoundingClientRect();
-        const offsetY = e.clientY - rect.top - dragStartOffset -50; // Adjust for initial drag offset
+        const offsetY = e.clientY - rect.top - dragStartOffset - 50; // Adjust for initial drag offset
         
         const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60);
         const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;

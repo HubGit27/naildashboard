@@ -1,7 +1,7 @@
 // components/scheduler/views/WeekView.tsx
 "use client";
 
-import React from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { SchedulerEvent } from '../types';
 import { getWeekDays, generateTimeSlots } from '../utils';
 
@@ -9,6 +9,7 @@ interface WeekViewProps {
   currentDate: Date;
   events: SchedulerEvent[];
   isDragging: boolean;
+  draggedEvent: SchedulerEvent | null;
   onEventClick: (event: SchedulerEvent) => void;
   onDragStart: (event: React.DragEvent, schedulerEvent: SchedulerEvent) => void;
   onDragEnd: () => void;
@@ -24,15 +25,56 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
            date1.getDate() === date2.getDate();
 };
 
-
-export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragging, onEventClick, onDragStart, onDragEnd, onDrop }) => {
+export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragging, draggedEvent, onEventClick, onDragStart, onDragEnd, onDrop }) => {
   const weekDays = getWeekDays(currentDate);
   const hourTimeSlots = generateTimeSlots(60);
-  const dropTimeSlots = generateTimeSlots(DROP_INTERVAL);
 
-  const handleDragOver = (e: React.DragEvent) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
+  const [dragOverInfo, setDragOverInfo] = useState<{ date: Date; time: string } | null>(null);
+  const [dragStartOffset, setDragStartOffset] = useState(0);
+
+  const dayColumnRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const handleLocalDragStart = (e: React.DragEvent<HTMLDivElement>, event: SchedulerEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offset = e.clientY - rect.top;
+    setDragStartOffset(offset);
+    onDragStart(e, event);
+  };
+
+  const calculateDropTime = (e: React.DragEvent, dayIndex: number): string => {
+    const dayColumn = dayColumnRefs.current[dayIndex];
+    if (!dayColumn) return "00:00";
+
+    const rect = dayColumn.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top - dragStartOffset -50;
+    
+    const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60);
+    const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;
+    const hour = Math.floor(interval / 60).toString().padStart(2, '0');
+    const minute = (interval % 60).toString().padStart(2, '0');
+    
+    return `${hour}:${minute}`;
+  };
+
+  const handleDragOver = (e: React.DragEvent, date: Date, dayIndex: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const time = calculateDropTime(e, dayIndex);
+    if (!dragOverInfo || !isSameDay(dragOverInfo.date, date) || dragOverInfo.time !== time) {
+      setDragOverInfo({ date, time });
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverInfo(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, date: Date, dayIndex: number) => {
+    e.preventDefault();
+    const time = calculateDropTime(e, dayIndex);
+    onDrop(date, time);
+    setDragOverInfo(null);
+    setDragStartOffset(0);
   };
 
   const getEventStyle = (event: SchedulerEvent): React.CSSProperties => {
@@ -65,7 +107,14 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
       </div>
       <div className="flex-1 grid grid-cols-7">
         {weekDays.map((day, index) => (
-          <div key={day.toISOString()} className="flex flex-col">
+          <div 
+            key={day.toISOString()} 
+            ref={el => dayColumnRefs.current[index] = el}
+            className="flex flex-col"
+            onDragOver={(e) => handleDragOver(e, day, index)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, day, index)}
+          >
             <div className="sticky top-0 bg-white z-30 p-2 border-b text-center h-14 flex-shrink-0">
               <div className="text-xs text-gray-500">{day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</div>
               <div className={`mt-1 text-xl font-semibold ${isSameDay(day, new Date()) ? 'text-blue-600' : ''}`}>
@@ -74,32 +123,30 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
             </div>
 
             <div className={`relative ${index < weekDays.length - 1 ? 'border-r border-gray-200' : ''}`}>
-                {/* Hourly grid lines to give the container height */}
                 {hourTimeSlots.map(time => (
                     <div key={time} style={{ height: `${HOUR_ROW_HEIGHT}px` }} className="border-t border-gray-100"></div>
                 ))}
             
-                {/* Drop zones are an absolute overlay */}
-                <div className="absolute inset-0 top-0 z-10">
-                    {dropTimeSlots.map(time => (
-                        <div 
-                            key={time}
-                            className="h-[15px]"
-                            onDragOver={handleDragOver}
-                            onDrop={() => onDrop(day, time)}
-                        />
-                    ))}
-                </div>
+                {dragOverInfo && isSameDay(dragOverInfo.date, day) && draggedEvent && (
+                    <div 
+                        className="absolute bg-blue-100 opacity-50 pointer-events-none"
+                        style={{
+                            top: `${(parseInt(dragOverInfo.time.split(':')[0]) * 60 + parseInt(dragOverInfo.time.split(':')[1])) / 60 * HOUR_ROW_HEIGHT}px`,
+                            height: `${((draggedEvent.end.getTime() - draggedEvent.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT}px`,
+                            left: '0',
+                            right: '0',
+                            zIndex: 5
+                        }}
+                    />
+                )}
                 
-                {/* --- FIX: Events are now positioned directly inside the main relative container --- */}
-                {/* This removes the extra absolute container that was causing the misalignment */}
                 {events
                   .filter(event => isSameDay(event.start, day))
                   .map(event => (
                     <div
                       key={event.id}
                       draggable={true}
-                      onDragStart={(e) => onDragStart(e, event)}
+                      onDragStart={(e) => handleLocalDragStart(e, event)}
                       onDragEnd={onDragEnd}
                       onClick={() => onEventClick(event)}
                       style={getEventStyle(event)}

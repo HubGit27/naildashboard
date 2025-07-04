@@ -95,6 +95,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
             events={visibleEvents}
             onEventClick={handleEventClick}
             isDragging={isDragging}
+            draggedEvent={draggedEvent} // Pass draggedEvent
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDrop={handleDrop}
