@@ -8,6 +8,7 @@ import { User, SchedulerEvent } from './types';
 import { SchedulerHeader } from './ui/SchedulerHeader';
 import { UserSelectionModal } from './ui/UserSelectionModal';
 import { EventModal } from './ui/EventModal';
+import { ConfirmationModal } from './ui/ConfirmationModal'; // Import ConfirmationModal
 import { DayView } from './views/DayView';
 import { WeekView } from './views/WeekView';
 import { MonthView } from './views/MonthView';
@@ -44,6 +45,9 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     handleUserToggle,
     showUserModal,
     setShowUserModal,
+    showConfirmationModal, // Destructure showConfirmationModal
+    confirmEventChange, // Destructure confirmEventChange
+    cancelEventChange, // Destructure cancelEventChange
     isLoading,
     error,
   } = useScheduler({ initialUsers, searchParams });
@@ -152,6 +156,13 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
             view={view}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showConfirmationModal}
+        onConfirm={confirmEventChange}
+        onCancel={cancelEventChange}
+        message="Are you sure you want to move this event?"
+      />
     </div>
   );
 };

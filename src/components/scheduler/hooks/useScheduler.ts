@@ -163,6 +163,8 @@ export const useScheduler = ({
     const [selectedEvent, setSelectedEvent] = useState<SchedulerEvent | null>(null);
     const [showEventModal, setShowEventModal] = useState<boolean>(false);
     const [showUserModal, setShowUserModal] = useState<boolean>(false);
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    const [pendingEventChange, setPendingEventChange] = useState<{ event: SchedulerEvent, newStart: Date, newEnd: Date, newUserId: string | number } | null>(null);
 
     const [draggedEvent, setDraggedEvent] = useState<SchedulerEvent | null>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -222,19 +224,45 @@ export const useScheduler = ({
 
     const handleDrop = (targetDate: Date, targetTime: string, targetUserId?: string | number) => {
         if (!draggedEvent) return;
+
         const eventDuration = draggedEvent.end.getTime() - draggedEvent.start.getTime();
         const [hours, minutes] = targetTime.split(':').map(Number);
         const newStart = new Date(targetDate);
         newStart.setHours(hours, minutes, 0, 0);
+
         const newEnd = new Date(newStart.getTime() + eventDuration);
+
+        setPendingEventChange({
+            event: draggedEvent,
+            newStart,
+            newEnd,
+            newUserId: targetUserId || draggedEvent.userId,
+        });
+
+        setShowConfirmationModal(true);
+        handleDragEnd();
+    };
+
+    const confirmEventChange = () => {
+        if (!pendingEventChange) return;
+
+        const { event, newStart, newEnd, newUserId } = pendingEventChange;
+
         const updatedEvent: SchedulerEvent = {
-            ...draggedEvent,
+            ...event,
             start: newStart,
             end: newEnd,
-            userId: targetUserId || draggedEvent.userId
+            userId: newUserId,
         };
-        setEvents(events.map(e => e.id === draggedEvent.id ? updatedEvent : e));
-        handleDragEnd();
+
+        setEvents(events.map(e => e.id === event.id ? updatedEvent : e));
+        setShowConfirmationModal(false);
+        setPendingEventChange(null);
+    };
+
+    const cancelEventChange = () => {
+        setShowConfirmationModal(false);
+        setPendingEventChange(null);
     };
 
     useEffect(() => {
@@ -334,6 +362,9 @@ export const useScheduler = ({
         handleDragStart,
         handleDragEnd,
         handleDrop,
+        showConfirmationModal,
+        confirmEventChange,
+        cancelEventChange,
         isLoading,
         error,
     };
