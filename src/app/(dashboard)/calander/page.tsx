@@ -34,6 +34,7 @@ const CalendarPage = async ({ searchParams }: { searchParams: { [key: string]: s
       </div>
 
       <CollapsiblePanel>
+        <EventCalendarContainer searchParams={searchParams} />
         <ResizeableColumnContainer title="Calendar" defaultHeight={400}>
           <EventCalendarContainer searchParams={searchParams} />
         </ResizeableColumnContainer>

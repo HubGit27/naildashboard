@@ -12,6 +12,8 @@ import { ConfirmationModal } from './ui/ConfirmationModal'; // Import Confirmati
 import { DayView } from './views/DayView';
 import { WeekView } from './views/WeekView';
 import { MonthView } from './views/MonthView';
+import CollapsiblePanel from '../CollapsiblePanel'; // Import CollapsiblePanel
+import { EventDetails } from './ui/EventDetails'; // Import EventDetails
 
 interface SchedulerProps {
   initialUsers: User[];
@@ -46,8 +48,15 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     showUserModal,
     setShowUserModal,
     showConfirmationModal, // Destructure showConfirmationModal
+<<<<<<< Updated upstream
     confirmAppointmentChange, // Destructure confirmAppointmentChange
     cancelAppointmentChange, // Destructure cancelAppointmentChange
+=======
+    confirmEventChange, // Destructure confirmEventChange
+    cancelEventChange, // Destructure cancelEventChange
+    selectedEventIdInUrl,
+    setSelectedEventIdInUrl,
+>>>>>>> Stashed changes
     isLoading,
     error,
   } = useScheduler({ initialUsers, searchParams });
@@ -132,8 +141,21 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
         onOpenUserSelector={() => setShowUserModal(true)}
       />
       
-      <div className="flex-1 overflow-auto">
-        {renderView()}
+      <div className="flex-1 overflow-auto flex">
+        <div className="flex-1">
+            {renderView()}
+        </div>
+        <CollapsiblePanel>
+            {selectedEvent ? (
+                <EventDetails 
+                    event={selectedEvent} 
+                    user={users.find(u => u.id === selectedEvent.userId)}
+                    onClose={() => setSelectedEventIdInUrl(null)} // Clear selected event
+                />
+            ) : (
+                <div className="p-4 text-gray-500">Click an event to see details</div>
+            )}
+        </CollapsiblePanel>
       </div>
 
       {showAppointmentModal && (

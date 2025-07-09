@@ -3,8 +3,13 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+<<<<<<< Updated upstream
 import { User, SchedulerAppointment, AppointmentForm, ViewType } from '../types';
 
+=======
+import { User, SchedulerEvent, EventForm, ViewType } from '../types';
+import { Appointment} from "@prisma/client";
+>>>>>>> Stashed changes
 // Function to generate a consistent color from a string (e.g., user ID)
 const generateColor = (id: string): string => {
     let hash = 0;
@@ -58,7 +63,11 @@ export const useScheduler = ({
     const [isClient, setIsClient] = useState(false);
 
         const [users] = useState<User[]>(initialUsers);
+<<<<<<< Updated upstream
     const [appointments, setAppointments] = useState<SchedulerAppointment[]>([]);
+=======
+    const [events, setEvents] = useState<Appointment[]>([]);
+>>>>>>> Stashed changes
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -122,7 +131,11 @@ export const useScheduler = ({
                 }
                 const fetchedAppointments = await appointmentsRes.json();
 
+<<<<<<< Updated upstream
                 const formattedAppointments: SchedulerAppointment[] = fetchedAppointments.map((apt: any) => ({
+=======
+                const formattedEvents: Appointment[] = fetchedAppointments.map((apt: any) => ({
+>>>>>>> Stashed changes
                     id: apt.id,
                     title: `${apt.customer.name}`,
                     start: new Date(apt.startTime),
@@ -160,8 +173,26 @@ export const useScheduler = ({
     }, [users, selectedUsers, getInitialSelection]);
 
 
+<<<<<<< Updated upstream
     const [selectedAppointment, setSelectedAppointment] = useState<SchedulerAppointment | null>(null);
     const [showAppointmentModal, setShowAppointmentModal] = useState<boolean>(false);
+=======
+    const [selectedEvent, setSelectedEvent] = useState<SchedulerEvent | null>(null);
+    const [selectedEventIdInUrl, setSelectedEventIdInUrl] = useState<string | null>(null);
+    const [showEventModal, setShowEventModal] = useState<boolean>(false);
+
+    // Initialize selectedEvent from URL on mount or when events load
+    useEffect(() => {
+        if (isClient && events.length > 0) {
+            const eventIdFromUrl = urlSearchParams.get('event');
+            if (eventIdFromUrl) {
+                const eventFromUrl = events.find(event => event.id === eventIdFromUrl);
+                setSelectedEvent(eventFromUrl || null);
+                setSelectedEventIdInUrl(eventIdFromUrl);
+            }
+        }
+    }, [isClient, events, urlSearchParams]);
+>>>>>>> Stashed changes
     const [showUserModal, setShowUserModal] = useState<boolean>(false);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [pendingAppointmentChange, setPendingAppointmentChange] = useState<{ appointment: SchedulerAppointment, newStart: Date, newEnd: Date, newUserId: string | number } | null>(null);
@@ -282,6 +313,13 @@ export const useScheduler = ({
                 params.set('employees', selectedUsers.map(id => id.toString()).join(','));
             }
 
+            if (selectedEventIdInUrl) {
+                params.set('event', selectedEventIdInUrl);
+            } 
+            // else {
+            //     params.delete('event');
+            // }
+
             safeLocalStorage.set(STORAGE_KEYS.DATE, currentDate.toISOString());
             safeLocalStorage.set(STORAGE_KEYS.VIEW, view);
             safeLocalStorage.set(STORAGE_KEYS.SELECTED_USERS, selectedUsers.map(id => id.toString()).join(','));
@@ -308,6 +346,7 @@ export const useScheduler = ({
         setView('day');
     };
 
+<<<<<<< Updated upstream
     const handleSaveAppointment = (appointmentData: AppointmentForm) => {
         const user = users.find(u => u.id === appointmentData.userId);
         const newAppointment: SchedulerAppointment = {
@@ -315,16 +354,35 @@ export const useScheduler = ({
             title: appointmentData.title,
             start: new Date(appointmentData.start),
             end: new Date(appointmentData.end),
+=======
+    const handleSaveEvent = (eventData: EventForm) => {
+        const user = users.find(u => u.id === eventData.userId);
+        const newEvent: Appointment = {
+            id: selectedEvent?.id || crypto.randomUUID(),
+            title: eventData.title,
+            start: new Date(eventData.start),
+            end: new Date(eventData.end),
+>>>>>>> Stashed changes
             color: user ? user.color : '#3b82f6',
             userId: appointmentData.userId
         };
+<<<<<<< Updated upstream
         if (selectedAppointment) {
             setAppointments(appointments.map(a => a.id === selectedAppointment.id ? newAppointment : a));
+=======
+        if (selectedEvent) {
+            setEvents(events.map(e => e.id === newEvent.id ? newEvent : e));
+>>>>>>> Stashed changes
         } else {
             setAppointments([...appointments, newAppointment]);
         }
+<<<<<<< Updated upstream
         setShowAppointmentModal(false);
         setSelectedAppointment(null);
+=======
+        setSelectedEventIdInUrl(newEvent.id);
+        setSelectedEvent(null);
+>>>>>>> Stashed changes
     };
 
     const visibleUsers = useMemo(() =>
@@ -352,8 +410,15 @@ export const useScheduler = ({
         setShowAppointmentModal,
         showUserModal,
         setShowUserModal,
+<<<<<<< Updated upstream
         selectedAppointment,
         setSelectedAppointment,
+=======
+        selectedEvent,
+        setSelectedEvent,
+        selectedEventIdInUrl,
+        setSelectedEventIdInUrl,
+>>>>>>> Stashed changes
         navigateDate,
         handleSaveAppointment,
         handleDayClickInMonthView,
