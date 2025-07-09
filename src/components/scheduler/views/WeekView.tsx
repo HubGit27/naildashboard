@@ -2,16 +2,16 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from 'react';
-import { SchedulerEvent } from '../types';
+import { SchedulerAppointment } from '../types';
 import { getWeekDays, generateTimeSlots } from '../utils';
 
 interface WeekViewProps {
   currentDate: Date;
-  events: SchedulerEvent[];
+  appointments: SchedulerAppointment[];
   isDragging: boolean;
-  draggedEvent: SchedulerEvent | null;
-  onEventClick: (event: SchedulerEvent) => void;
-  onDragStart: (event: React.DragEvent, schedulerEvent: SchedulerEvent) => void;
+  draggedAppointment: SchedulerAppointment | null;
+  onAppointmentClick: (appointment: SchedulerAppointment) => void;
+  onDragStart: (event: React.DragEvent, schedulerAppointment: SchedulerAppointment) => void;
   onDragEnd: () => void;
   onDrop: (targetDate: Date, targetTime: string) => void;
 }
@@ -25,7 +25,7 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
            date1.getDate() === date2.getDate();
 };
 
-export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragging, draggedEvent, onEventClick, onDragStart, onDragEnd, onDrop }) => {
+export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop }) => {
   const weekDays = getWeekDays(currentDate);
   const hourTimeSlots = generateTimeSlots(60);
 
@@ -34,11 +34,11 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
 
   const dayColumnRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const handleLocalDragStart = (e: React.DragEvent<HTMLDivElement>, event: SchedulerEvent) => {
+  const handleLocalDragStart = (e: React.DragEvent<HTMLDivElement>, appointment: SchedulerAppointment) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const offset = e.clientY - rect.top;
     setDragStartOffset(offset);
-    onDragStart(e, event);
+    onDragStart(e, appointment);
   };
 
   const calculateDropTime = (e: React.DragEvent, dayIndex: number): string => {
@@ -77,9 +77,9 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
     setDragStartOffset(0);
   };
 
-  const getEventStyle = (event: SchedulerEvent): React.CSSProperties => {
-    const startHour = event.start.getHours() + event.start.getMinutes() / 60;
-    const durationHours = (event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60);
+  const getAppointmentStyle = (appointment: SchedulerAppointment): React.CSSProperties => {
+    const startHour = appointment.start.getHours() + appointment.start.getMinutes() / 60;
+    const durationHours = (appointment.end.getTime() - appointment.start.getTime()) / (1000 * 60 * 60);
     const top = startHour * HOUR_ROW_HEIGHT;
     const height = durationHours * HOUR_ROW_HEIGHT;
 
@@ -89,7 +89,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
       height: `${height}px`,
       left: '4px',
       right: '4px',
-      backgroundColor: event.color,
+      backgroundColor: appointment.color,
       zIndex: 20,
       opacity: isDragging ? 0.5 : 1
     };
@@ -109,7 +109,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
         {weekDays.map((day, index) => (
           <div 
             key={day.toISOString()} 
-            ref={el => dayColumnRefs.current[index] = el}
+            ref={el => {dayColumnRefs.current[index] = el}}
             className="flex flex-col"
             onDragOver={(e) => handleDragOver(e, day, index)}
             onDragLeave={handleDragLeave}
@@ -127,12 +127,12 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
                     <div key={time} style={{ height: `${HOUR_ROW_HEIGHT}px` }} className="border-t border-gray-100"></div>
                 ))}
             
-                {dragOverInfo && isSameDay(dragOverInfo.date, day) && draggedEvent && (
+                {dragOverInfo && isSameDay(dragOverInfo.date, day) && draggedAppointment && (
                     <div 
                         className="absolute bg-blue-100 opacity-50 pointer-events-none"
                         style={{
                             top: `${(parseInt(dragOverInfo.time.split(':')[0]) * 60 + parseInt(dragOverInfo.time.split(':')[1])) / 60 * HOUR_ROW_HEIGHT}px`,
-                            height: `${((draggedEvent.end.getTime() - draggedEvent.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT}px`,
+                            height: `${((draggedAppointment.end.getTime() - draggedAppointment.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT}px`,
                             left: '0',
                             right: '0',
                             zIndex: 5
@@ -140,21 +140,21 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, events, isDragg
                     />
                 )}
                 
-                {events
-                  .filter(event => isSameDay(event.start, day))
-                  .map(event => (
+                {appointments
+                  .filter(appointment => isSameDay(appointment.start, day))
+                  .map(appointment => (
                     <div
-                      key={event.id}
+                      key={appointment.id}
                       draggable={true}
-                      onDragStart={(e) => handleLocalDragStart(e, event)}
+                      onDragStart={(e) => handleLocalDragStart(e, appointment)}
                       onDragEnd={onDragEnd}
-                      onClick={() => onEventClick(event)}
-                      style={getEventStyle(event)}
+                      onClick={() => onAppointmentClick(appointment)}
+                      style={getAppointmentStyle(appointment)}
                       className="p-1 rounded text-white text-xs cursor-grab hover:opacity-80 transition-opacity"
                     >
-                      <p className="font-bold truncate">{event.title}</p>
+                      <p className="font-bold truncate">{appointment.title}</p>
                       <p className="opacity-80 truncate">
-                        {event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        {appointment.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {appointment.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </p>
                     </div>
                   ))}

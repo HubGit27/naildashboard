@@ -13,7 +13,7 @@ interface SchedulerHeaderProps {
   onNavigate: (direction: number) => void;
   onSetView: (view: ViewType) => void;
   onToday: () => void;
-  onAddEvent: () => void;
+  onAddAppointment: () => void;
   onOpenUserSelector: () => void;
 }
 
@@ -24,7 +24,7 @@ export const SchedulerHeader: React.FC<SchedulerHeaderProps> = ({
   onNavigate,
   onSetView,
   onToday,
-  onAddEvent,
+  onAddAppointment,
   onOpenUserSelector,
 }) => {
   return (
@@ -57,9 +57,9 @@ export const SchedulerHeader: React.FC<SchedulerHeaderProps> = ({
                   </button>
               ))}
           </div>
-          <button onClick={onAddEvent} className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button onClick={onAddAppointment} className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
               <Plus className="w-4 h-4" />
-              <span className="text-sm font-semibold">Add Event</span>
+              <span className="text-sm font-semibold">Add Appointment</span>
           </button>
       </div>
     </header>

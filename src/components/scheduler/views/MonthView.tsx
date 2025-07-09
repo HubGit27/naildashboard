@@ -2,17 +2,17 @@
 "use client";
 
 import React from 'react';
-import { Event } from '../types';
+import { SchedulerAppointment } from '../types';
 import { getMonthDays } from '../utils';
 
 interface MonthViewProps {
   currentDate: Date;
-  events: Event[];
+  appointments: SchedulerAppointment[];
   onDayClick: (date: Date) => void;
-  // Future: onEventClick
+  // Future: onAppointmentClick
 }
 
-export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDayClick }) => {
+export const MonthView: React.FC<MonthViewProps> = ({ currentDate, appointments, onDayClick }) => {
   const monthDays = getMonthDays(currentDate);
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -30,7 +30,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDay
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 grid-rows-6 flex-1">
         {monthDays.map(({ date, isCurrentMonth }, index) => {
-          const eventsOnDay = events.filter(e => e.start.toDateString() === date.toDateString());
+          const appointmentsOnDay = appointments.filter(e => e.start.toDateString() === date.toDateString());
           const isToday = date.toDateString() === new Date().toDateString();
 
           return (
@@ -43,18 +43,18 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onDay
                 {date.getDate()}
               </span>
               <div className="flex-1 mt-1 overflow-hidden">
-                {eventsOnDay.slice(0, 2).map(event => (
+                {appointmentsOnDay.slice(0, 2).map(appointment => (
                   <div
-                    key={event.id}
+                    key={appointment.id}
                     className="text-xs text-white rounded px-1 py-0.5 mb-1 truncate"
-                    style={{ backgroundColor: event.color }}
+                    style={{ backgroundColor: appointment.color }}
                   >
-                    {event.title}
+                    {appointment.title}
                   </div>
                 ))}
-                {eventsOnDay.length > 2 && (
+                {appointmentsOnDay.length > 2 && (
                   <div className="text-xs text-gray-600">
-                    + {eventsOnDay.length - 2} more
+                    + {appointmentsOnDay.length - 2} more
                   </div>
                 )}
               </div>

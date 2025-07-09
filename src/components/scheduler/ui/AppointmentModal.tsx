@@ -1,21 +1,22 @@
-// components/scheduler/ui/EventModal.tsx
+
+// components/scheduler/ui/AppointmentModal.tsx
 "use client";
 
 import React,  { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
-import { SchedulerEvent, User, EventForm } from '../types';
+import { SchedulerAppointment, User, AppointmentForm } from '../types';
 
-interface EventModalProps {
+interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (eventData: EventForm) => void;
-  onDelete?: (eventId: number) => void;
-  eventData: SchedulerEvent | null;
+  onSave: (appointmentData: AppointmentForm) => void;
+  onDelete?: (appointmentId: number) => void;
+  appointmentData: SchedulerAppointment | null;
   users: User[];
 }
 
-export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDelete, eventData, users }) => {
-  const [formState, setFormState] = useState<EventForm>({
+export const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, onSave, onDelete, appointmentData, users }) => {
+  const [formState, setFormState] = useState<AppointmentForm>({
     title: '',
     start: '',
     end: '',
@@ -53,13 +54,13 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
     setLocalEnd(formatForDateTimeLocal(formState.end));
   }, [formState.end]);
   useEffect(() => {
-    if (eventData) {
+    if (appointmentData) {
       setFormState({
-        title: eventData.title,
-        start: eventData.start.toISOString().slice(0, 16),
-        end: eventData.end.toISOString().slice(0, 16),
-        userId: eventData.userId,
-        color: eventData.color,
+        title: appointmentData.title,
+        start: appointmentData.start.toISOString().slice(0, 16),
+        end: appointmentData.end.toISOString().slice(0, 16),
+        userId: appointmentData.userId,
+        color: appointmentData.color,
       });
     } else {
       const defaultStartTime = new Date();
@@ -72,7 +73,7 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         color: users[0]?.color || '#3b82f6',
       });
     }
-  }, [eventData, users, isOpen]);
+  }, [appointmentData, users, isOpen]);
 
   if (!isOpen) return null;
 
@@ -92,7 +93,7 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">{eventData ? 'Edit Event' : 'Add New Event'}</h2>
+          <h2 className="text-xl font-bold">{appointmentData ? 'Edit Appointment' : 'Add New Appointment'}</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full">
             <X className="w-5 h-5" />
           </button>
@@ -139,12 +140,12 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
           </div>
           <div className="mt-6 flex justify-between items-center">
             <div>
-              {eventData && onDelete && (
+              {appointmentData && onDelete && (
                 <button
                   type="button"
-                  onClick={() => onDelete(eventData.id)}
+                  onClick={() => onDelete(appointmentData.id)}
                   className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full"
-                  aria-label="Delete Event"
+                  aria-label="Delete Appointment"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
@@ -155,7 +156,7 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                 Cancel
               </button>
               <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                {eventData ? 'Save Changes' : 'Create Event'}
+                {appointmentData ? 'Save Changes' : 'Create Appointment'}
               </button>
             </div>
           </div>
@@ -164,3 +165,4 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
     </div>
   );
 };
+

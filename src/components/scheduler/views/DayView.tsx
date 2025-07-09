@@ -2,17 +2,17 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { User, SchedulerEvent } from '../types';
+import { User, SchedulerAppointment } from '../types';
 import { generateTimeSlots } from '../utils';
 
 interface DayViewProps {
   currentDate: Date;
   users: User[];
-  events: SchedulerEvent[];
+  appointments: SchedulerAppointment[];
   isDragging: boolean;
-  draggedEvent: SchedulerEvent | null;
-  onEventClick: (event: SchedulerEvent) => void;
-  onDragStart: (event: React.DragEvent, schedulerEvent: SchedulerEvent) => void;
+  draggedAppointment: SchedulerAppointment | null;
+  onAppointmentClick: (appointment: SchedulerAppointment) => void;
+  onDragStart: (event: React.DragEvent, schedulerAppointment: SchedulerAppointment) => void;
   onDragEnd: () => void;
   onDrop: (targetDate: Date, targetTime: string, targetUserId: string | number) => void;
 }
@@ -27,7 +27,7 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
            date1.getDate() === date2.getDate();
 };
 
-export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, isDragging, draggedEvent, onEventClick, onDragStart, onDragEnd, onDrop }) => {
+export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop }) => {
     const hourTimeSlots = generateTimeSlots(60);
     
     const [columnWidths, setColumnWidths] = useState<number[]>([]);
@@ -46,11 +46,11 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
         userColumnRefs.current = userColumnRefs.current.slice(0, users.length);
     }, [users]);
 
-    const handleLocalDragStart = (e: React.DragEvent<HTMLDivElement>, event: SchedulerEvent) => {
+    const handleLocalDragStart = (e: React.DragEvent<HTMLDivElement>, appointment: SchedulerAppointment) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const offset = e.clientY - rect.top;
         setDragStartOffset(offset);
-        onDragStart(e, event); // Propagate to parent
+        onDragStart(e, appointment); // Propagate to parent
     };
 
     const calculateDropTime = (e: React.DragEvent, userIndex: number): string => {
@@ -151,7 +151,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
                 {users.map((user, index) => (
                     <div 
                         key={user.id} 
-                        ref={el => userColumnRefs.current[index] = el}
+                        ref={el => { userColumnRefs.current[index] = el; }}
                         className="relative flex flex-col"
                         onDragOver={(e) => handleDragOver(e, user.id, index)}
                         onDragLeave={handleDragLeave}
@@ -166,12 +166,12 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
                                 <div key={time} style={{ height: `${HOUR_ROW_HEIGHT}px` }} className="border-t border-gray-100"></div>
                             ))}
 
-                            {dragOverInfo && dragOverInfo.userId === user.id && draggedEvent && (
+                            {dragOverInfo && dragOverInfo.userId === user.id && draggedAppointment && (
                                 <div 
                                     className="absolute bg-blue-100 opacity-50 pointer-events-none"
                                     style={{
                                         top: `${(parseInt(dragOverInfo.time.split(':')[0]) * 60 + parseInt(dragOverInfo.time.split(':')[1])) / 60 * HOUR_ROW_HEIGHT}px`,
-                                        height: `${((draggedEvent.end.getTime() - draggedEvent.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT}px`,
+                                        height: `${((draggedAppointment.end.getTime() - draggedAppointment.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT}px`,
                                         left: '0',
                                         right: '0',
                                         zIndex: 5
@@ -180,35 +180,35 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, events, is
                             )}
 
                             <div className="absolute inset-0 top-0 z-20 pointer-events-none">
-                                {events
-                                    .filter(event => event.userId === user.id && isSameDay(event.start, currentDate))
-                                    .map(event => {
-                                        const startMinutes = event.start.getHours() * 60 + event.start.getMinutes();
-                                        const endMinutes = event.end.getHours() * 60 + event.end.getMinutes();
+                                {appointments
+                                    .filter(appointment => appointment.userId === user.id && isSameDay(appointment.start, currentDate))
+                                    .map(appointment => {
+                                        const startMinutes = appointment.start.getHours() * 60 + appointment.start.getMinutes();
+                                        const endMinutes = appointment.end.getHours() * 60 + appointment.end.getMinutes();
                                         const durationMinutes = endMinutes - startMinutes;
                                         const top = (startMinutes / 60) * HOUR_ROW_HEIGHT;
                                         const height = (durationMinutes / 60) * HOUR_ROW_HEIGHT;
 
                                         return (
                                             <div 
-                                                key={event.id}
+                                                key={appointment.id}
                                                 draggable={true}
-                                                onDragStart={(e) => handleLocalDragStart(e, event)}
+                                                onDragStart={(e) => handleLocalDragStart(e, appointment)}
                                                 onDragEnd={onDragEnd}
-                                                onClick={() => onEventClick(event)}
+                                                onClick={() => onAppointmentClick(appointment)}
                                                 className="absolute p-2 rounded text-white text-xs cursor-grab shadow-md pointer-events-auto"
                                                 style={{
                                                     top: `${top}px`,
                                                     height: `${height}px`,
-                                                    backgroundColor: event.color,
+                                                    backgroundColor: appointment.color,
                                                     left: '4px',
                                                     right: '4px',
                                                     opacity: isDragging ? 0.5 : 1,
                                                 }}
                                             >
-                                                <p className="font-bold truncate">{event.title}</p>
+                                                <p className="font-bold truncate">{appointment.title}</p>
                                                 <p className="opacity-80 truncate">
-                                                    {event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                    {appointment.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {appointment.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                 </p>
                                             </div>
                                         )

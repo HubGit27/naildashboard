@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { User, SchedulerEvent, EventForm, ViewType } from '../types';
+import { User, SchedulerAppointment, AppointmentForm, ViewType } from '../types';
 
 // Function to generate a consistent color from a string (e.g., user ID)
 const generateColor = (id: string): string => {
@@ -58,7 +58,7 @@ export const useScheduler = ({
     const [isClient, setIsClient] = useState(false);
 
         const [users] = useState<User[]>(initialUsers);
-    const [events, setEvents] = useState<SchedulerEvent[]>([]);
+    const [appointments, setAppointments] = useState<SchedulerAppointment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -122,7 +122,7 @@ export const useScheduler = ({
                 }
                 const fetchedAppointments = await appointmentsRes.json();
 
-                const formattedEvents: SchedulerEvent[] = fetchedAppointments.map((apt: any) => ({
+                const formattedAppointments: SchedulerAppointment[] = fetchedAppointments.map((apt: any) => ({
                     id: apt.id,
                     title: `${apt.customer.name}`,
                     start: new Date(apt.startTime),
@@ -131,7 +131,7 @@ export const useScheduler = ({
                     color: generateColor(apt.employeeId),
                 }));
 
-                setEvents(formattedEvents);
+                setAppointments(formattedAppointments);
                 setSelectedUsers(getInitialSelection(users));
 
             } catch (e: any) {
@@ -160,13 +160,13 @@ export const useScheduler = ({
     }, [users, selectedUsers, getInitialSelection]);
 
 
-    const [selectedEvent, setSelectedEvent] = useState<SchedulerEvent | null>(null);
-    const [showEventModal, setShowEventModal] = useState<boolean>(false);
+    const [selectedAppointment, setSelectedAppointment] = useState<SchedulerAppointment | null>(null);
+    const [showAppointmentModal, setShowAppointmentModal] = useState<boolean>(false);
     const [showUserModal, setShowUserModal] = useState<boolean>(false);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-    const [pendingEventChange, setPendingEventChange] = useState<{ event: SchedulerEvent, newStart: Date, newEnd: Date, newUserId: string | number } | null>(null);
+    const [pendingAppointmentChange, setPendingAppointmentChange] = useState<{ appointment: SchedulerAppointment, newStart: Date, newEnd: Date, newUserId: string | number } | null>(null);
 
-    const [draggedEvent, setDraggedEvent] = useState<SchedulerEvent | null>(null);
+    const [draggedAppointment, setDraggedAppointment] = useState<SchedulerAppointment | null>(null);
     const [isDragging, setIsDragging] = useState(false);
 
     // Re-sync with URL parameters when they change
@@ -211,58 +211,58 @@ export const useScheduler = ({
         }
     }, [view, dayViewSelectionCache, singleViewSelectionCache]);
 
-    const handleDragStart = (event: React.DragEvent, schedulerEvent: SchedulerEvent) => {
-        setDraggedEvent(schedulerEvent);
+    const handleDragStart = (event: React.DragEvent, schedulerAppointment: SchedulerAppointment) => {
+        setDraggedAppointment(schedulerAppointment);
         setIsDragging(true);
         event.dataTransfer.effectAllowed = 'move';
     };
 
     const handleDragEnd = () => {
-        setDraggedEvent(null);
+        setDraggedAppointment(null);
         setIsDragging(false);
     };
 
     const handleDrop = (targetDate: Date, targetTime: string, targetUserId?: string | number) => {
-        if (!draggedEvent) return;
+        if (!draggedAppointment) return;
 
-        const eventDuration = draggedEvent.end.getTime() - draggedEvent.start.getTime();
+        const appointmentDuration = draggedAppointment.end.getTime() - draggedAppointment.start.getTime();
         const [hours, minutes] = targetTime.split(':').map(Number);
         const newStart = new Date(targetDate);
         newStart.setHours(hours, minutes, 0, 0);
 
-        const newEnd = new Date(newStart.getTime() + eventDuration);
+        const newEnd = new Date(newStart.getTime() + appointmentDuration);
 
-        setPendingEventChange({
-            event: draggedEvent,
+        setPendingAppointmentChange({
+            appointment: draggedAppointment,
             newStart,
             newEnd,
-            newUserId: targetUserId || draggedEvent.userId,
+            newUserId: targetUserId || draggedAppointment.userId,
         });
 
         setShowConfirmationModal(true);
         handleDragEnd();
     };
 
-    const confirmEventChange = () => {
-        if (!pendingEventChange) return;
+    const confirmAppointmentChange = () => {
+        if (!pendingAppointmentChange) return;
 
-        const { event, newStart, newEnd, newUserId } = pendingEventChange;
+        const { appointment, newStart, newEnd, newUserId } = pendingAppointmentChange;
 
-        const updatedEvent: SchedulerEvent = {
-            ...event,
+        const updatedAppointment: SchedulerAppointment = {
+            ...appointment,
             start: newStart,
             end: newEnd,
             userId: newUserId,
         };
 
-        setEvents(events.map(e => e.id === event.id ? updatedEvent : e));
+        setAppointments(appointments.map(a => a.id === appointment.id ? updatedAppointment : a));
         setShowConfirmationModal(false);
-        setPendingEventChange(null);
+        setPendingAppointmentChange(null);
     };
 
-    const cancelEventChange = () => {
+    const cancelAppointmentChange = () => {
         setShowConfirmationModal(false);
-        setPendingEventChange(null);
+        setPendingAppointmentChange(null);
     };
 
     useEffect(() => {
@@ -308,23 +308,23 @@ export const useScheduler = ({
         setView('day');
     };
 
-    const handleSaveEvent = (eventData: EventForm) => {
-        const user = users.find(u => u.id === eventData.userId);
-        const newEvent: SchedulerEvent = {
-            id: selectedEvent?.id || crypto.randomUUID(),
-            title: eventData.title,
-            start: new Date(eventData.start),
-            end: new Date(eventData.end),
+    const handleSaveAppointment = (appointmentData: AppointmentForm) => {
+        const user = users.find(u => u.id === appointmentData.userId);
+        const newAppointment: SchedulerAppointment = {
+            id: selectedAppointment?.id || crypto.randomUUID(),
+            title: appointmentData.title,
+            start: new Date(appointmentData.start),
+            end: new Date(appointmentData.end),
             color: user ? user.color : '#3b82f6',
-            userId: eventData.userId
+            userId: appointmentData.userId
         };
-        if (selectedEvent) {
-            setEvents(events.map(e => e.id === selectedEvent.id ? newEvent : e));
+        if (selectedAppointment) {
+            setAppointments(appointments.map(a => a.id === selectedAppointment.id ? newAppointment : a));
         } else {
-            setEvents([...events, newEvent]);
+            setAppointments([...appointments, newAppointment]);
         }
-        setShowEventModal(false);
-        setSelectedEvent(null);
+        setShowAppointmentModal(false);
+        setSelectedAppointment(null);
     };
 
     const visibleUsers = useMemo(() =>
@@ -332,9 +332,9 @@ export const useScheduler = ({
         [users, selectedUsers]
     );
 
-    const visibleEvents = useMemo(() =>
-        events.filter(event => selectedUsers.includes(event.userId)),
-        [events, selectedUsers]
+    const visibleAppointments = useMemo(() =>
+        appointments.filter(appointment => selectedUsers.includes(appointment.userId)),
+        [appointments, selectedUsers]
     );
 
     return {
@@ -345,26 +345,26 @@ export const useScheduler = ({
         setView,
         users,
         visibleUsers,
-        events: visibleEvents,
+        appointments: visibleAppointments,
         selectedUsers,
         handleUserToggle,
-        showEventModal,
-        setShowEventModal,
+        showAppointmentModal,
+        setShowAppointmentModal,
         showUserModal,
         setShowUserModal,
-        selectedEvent,
-        setSelectedEvent,
+        selectedAppointment,
+        setSelectedAppointment,
         navigateDate,
-        handleSaveEvent,
+        handleSaveAppointment,
         handleDayClickInMonthView,
         isDragging,
-        draggedEvent, // Expose draggedEvent
+        draggedAppointment, // Expose draggedAppointment
         handleDragStart,
         handleDragEnd,
         handleDrop,
         showConfirmationModal,
-        confirmEventChange,
-        cancelEventChange,
+        confirmAppointmentChange,
+        cancelAppointmentChange,
         isLoading,
         error,
     };

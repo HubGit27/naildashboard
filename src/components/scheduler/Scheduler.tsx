@@ -3,11 +3,11 @@
 
 import React, { useMemo } from 'react';
 import { useScheduler } from './hooks/useScheduler';
-import { User, SchedulerEvent } from './types';
+import { User, SchedulerAppointment } from './types';
 
 import { SchedulerHeader } from './ui/SchedulerHeader';
 import { UserSelectionModal } from './ui/UserSelectionModal';
-import { EventModal } from './ui/EventModal';
+import { AppointmentModal } from './ui/AppointmentModal';
 import { ConfirmationModal } from './ui/ConfirmationModal'; // Import ConfirmationModal
 import { DayView } from './views/DayView';
 import { WeekView } from './views/WeekView';
@@ -28,16 +28,16 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     setView,
     users,
     visibleUsers,
-    events: visibleEvents,
-    showEventModal,
-    setShowEventModal,
-    selectedEvent,
-    setSelectedEvent,
+    appointments: visibleAppointments,
+    showAppointmentModal,
+    setShowAppointmentModal,
+    selectedAppointment,
+    setSelectedAppointment,
     navigateDate,
-    handleSaveEvent,
+    handleSaveAppointment,
     handleDayClickInMonthView,
     isDragging,
-    draggedEvent,
+    draggedAppointment,
     handleDragStart,
     handleDragEnd,
     handleDrop,
@@ -46,8 +46,8 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     showUserModal,
     setShowUserModal,
     showConfirmationModal, // Destructure showConfirmationModal
-    confirmEventChange, // Destructure confirmEventChange
-    cancelEventChange, // Destructure cancelEventChange
+    confirmAppointmentChange, // Destructure confirmAppointmentChange
+    cancelAppointmentChange, // Destructure cancelAppointmentChange
     isLoading,
     error,
   } = useScheduler({ initialUsers, searchParams });
@@ -60,15 +60,15 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     return null;
   }, [users, selectedUsers, view]);
 
-  const handleAddEventClick = () => {
-    setSelectedEvent(null);
-    setShowEventModal(true);
+  const handleAddAppointmentClick = () => {
+    setSelectedAppointment(null);
+    setShowAppointmentModal(true);
   };
   
-  const handleEventClick = (event: SchedulerEvent) => {
+  const handleAppointmentClick = (appointment: SchedulerAppointment) => {
     if (!isDragging) {
-      setSelectedEvent(event);
-      setShowEventModal(true);
+      setSelectedAppointment(appointment);
+      setShowAppointmentModal(true);
     }
   };
 
@@ -85,10 +85,10 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
         return <DayView 
             currentDate={currentDate} 
             users={visibleUsers} 
-            events={visibleEvents}
-            onEventClick={handleEventClick}
+            appointments={visibleAppointments}
+            onAppointmentClick={handleAppointmentClick}
             isDragging={isDragging}
-            draggedEvent={draggedEvent}
+            draggedAppointment={draggedAppointment}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDrop={handleDrop}
@@ -96,10 +96,10 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
       case 'week':
         return <WeekView 
             currentDate={currentDate} 
-            events={visibleEvents}
-            onEventClick={handleEventClick}
+            appointments={visibleAppointments}
+            onAppointmentClick={handleAppointmentClick}
             isDragging={isDragging}
-            draggedEvent={draggedEvent} // Pass draggedEvent
+            draggedAppointment={draggedAppointment} // Pass draggedAppointment
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDrop={handleDrop}
@@ -107,7 +107,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
       case 'month':
         return <MonthView 
             currentDate={currentDate} 
-            events={visibleEvents}
+            appointments={visibleAppointments}
             onDayClick={handleDayClickInMonthView} 
         />;
       default:
@@ -128,7 +128,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
         onNavigate={navigateDate}
         onSetView={setView}
         onToday={() => setCurrentDate(new Date())}
-        onAddEvent={handleAddEventClick}
+        onAddAppointment={handleAddAppointmentClick}
         onOpenUserSelector={() => setShowUserModal(true)}
       />
       
@@ -136,12 +136,12 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
         {renderView()}
       </div>
 
-      {showEventModal && (
-        <EventModal
-          isOpen={showEventModal}
-          onClose={() => setShowEventModal(false)}
-          onSave={handleSaveEvent}
-          eventData={selectedEvent}
+      {showAppointmentModal && (
+        <AppointmentModal
+          isOpen={showAppointmentModal}
+          onClose={() => setShowAppointmentModal(false)}
+          onSave={handleSaveAppointment}
+          appointmentData={selectedAppointment}
           users={users}
         />
       )}
@@ -159,9 +159,9 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
 
       <ConfirmationModal
         isOpen={showConfirmationModal}
-        onConfirm={confirmEventChange}
-        onCancel={cancelEventChange}
-        message="Are you sure you want to move this event?"
+        onConfirm={confirmAppointmentChange}
+        onCancel={cancelAppointmentChange}
+        message="Are you sure you want to move this appointment?"
       />
     </div>
   );

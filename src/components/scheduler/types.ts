@@ -7,9 +7,9 @@ export interface User {
   avatar: string;
 }
 
-// Renamed from 'Event' to 'SchedulerEvent' to avoid DOM 'Event' type collision
-export interface SchedulerEvent {
-  id: number;
+// Renamed from 'Event' to 'SchedulerAppointment' to avoid DOM 'Event' type collision
+export interface SchedulerAppointment {
+  id: string;
   title: string;
   start: Date;
   end: Date;
@@ -17,7 +17,7 @@ export interface SchedulerEvent {
   userId: string | number;
 }
 
-export interface EventForm {
+export interface AppointmentForm {
   title: string;
   start: string;
   end: string;
@@ -28,14 +28,6 @@ export interface EventForm {
 export interface MonthDay {
   date: Date;
   isCurrentMonth: boolean;
-}
-export interface Event {
-  id: number;
-  title: string;
-  start: Date;
-  end: Date;
-  color: string;
-  userId: string | number;
 }
 
 export type ViewType = 'day' | 'week' | 'month';
