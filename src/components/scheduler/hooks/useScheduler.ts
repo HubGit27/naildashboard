@@ -57,7 +57,7 @@ export const useScheduler = ({
     const urlSearchParams = useSearchParams();
     const [isClient, setIsClient] = useState(false);
 
-        const [users] = useState<User[]>(initialUsers);
+    const [users] = useState<User[]>(initialUsers);
     const [appointments, setAppointments] = useState<SchedulerAppointment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -109,6 +109,8 @@ export const useScheduler = ({
     const [currentDate, setCurrentDate] = useState<Date>(getInitialDate);
     const [view, setView] = useState<ViewType>(getInitialView);
     const [selectedUsers, setSelectedUsers] = useState<Array<string | number>>([]);
+    const [urlAppointmentId, setUrlAppointmentId] = useState<string | null>(null);
+
 
     // Fetch data on mount
     useEffect(() => {
@@ -169,26 +171,7 @@ export const useScheduler = ({
     const [draggedAppointment, setDraggedAppointment] = useState<SchedulerAppointment | null>(null);
     const [isDragging, setIsDragging] = useState(false);
 
-    // Re-sync with URL parameters when they change
-    useEffect(() => {
-        if (!isClient || users.length === 0) return;
-
-        const newDate = getInitialDate();
-        const newView = getInitialView();
-        const newSelection = getInitialSelection(users);
-
-        setCurrentDate(newDate);
-        setView(newView);
-        setSelectedUsers(newSelection);
-
-        if (newView === 'day') {
-            setDayViewSelectionCache(newSelection);
-        } else {
-            setSingleViewSelectionCache(newSelection.length > 0 ? newSelection[0] : null);
-        }
-    }, [urlSearchParams, isClient, users, getInitialDate, getInitialView, getInitialSelection]);
-
-    const handleUserToggle = (userId: string | number) => {
+    const handleUserToggle = useCallback((userId: string | number) => {
         if (view === 'day') {
             const newSelection = selectedUsers.includes(userId)
                 ? selectedUsers.length > 1 ? selectedUsers.filter(id => id !== userId) : selectedUsers
@@ -199,7 +182,7 @@ export const useScheduler = ({
             setSelectedUsers([userId]);
             setSingleViewSelectionCache(userId);
         }
-    };
+    }, [view, selectedUsers]);
 
     useEffect(() => {
         if (view === 'week' || view === 'month') {
@@ -211,18 +194,18 @@ export const useScheduler = ({
         }
     }, [view, dayViewSelectionCache, singleViewSelectionCache]);
 
-    const handleDragStart = (event: React.DragEvent, schedulerAppointment: SchedulerAppointment) => {
+    const handleDragEnd = useCallback(() => {
+        setDraggedAppointment(null);
+        setIsDragging(false);
+    }, []);
+
+    const handleDragStart = useCallback((event: React.DragEvent, schedulerAppointment: SchedulerAppointment) => {
         setDraggedAppointment(schedulerAppointment);
         setIsDragging(true);
         event.dataTransfer.effectAllowed = 'move';
-    };
+    }, []);
 
-    const handleDragEnd = () => {
-        setDraggedAppointment(null);
-        setIsDragging(false);
-    };
-
-    const handleDrop = (targetDate: Date, targetTime: string, targetUserId?: string | number) => {
+    const handleDrop = useCallback((targetDate: Date, targetTime: string, targetUserId?: string | number) => {
         if (!draggedAppointment) return;
 
         const appointmentDuration = draggedAppointment.end.getTime() - draggedAppointment.start.getTime();
@@ -241,9 +224,9 @@ export const useScheduler = ({
 
         setShowConfirmationModal(true);
         handleDragEnd();
-    };
+    }, [draggedAppointment, handleDragEnd]);
 
-    const confirmAppointmentChange = () => {
+    const confirmAppointmentChange = useCallback(() => {
         if (!pendingAppointmentChange) return;
 
         const { appointment, newStart, newEnd, newUserId } = pendingAppointmentChange;
@@ -258,57 +241,66 @@ export const useScheduler = ({
         setAppointments(appointments.map(a => a.id === appointment.id ? updatedAppointment : a));
         setShowConfirmationModal(false);
         setPendingAppointmentChange(null);
-    };
+    }, [pendingAppointmentChange, appointments]);
 
-    const cancelAppointmentChange = () => {
+    const cancelAppointmentChange = useCallback(() => {
         setShowConfirmationModal(false);
         setPendingAppointmentChange(null);
-    };
+    }, []);
 
     useEffect(() => {
         setIsClient(true);
     }, []);
 
-    // Enhanced URL update with localStorage persistence
     useEffect(() => {
         if (!isClient) return;
 
         const timeoutId = setTimeout(() => {
-            const params = new URLSearchParams();
+            const params = new URLSearchParams(window.location.search);
+
             params.set('date', currentDate.toISOString());
             params.set('view', view);
 
             if (selectedUsers.length > 0) {
                 params.set('employees', selectedUsers.map(id => id.toString()).join(','));
+            } else {
+                params.delete('employees');
             }
 
+            if (urlAppointmentId) {
+                params.set('appointmentId', urlAppointmentId);
+            } else {
+                params.delete('appointmentId');
+            }
+            
             safeLocalStorage.set(STORAGE_KEYS.DATE, currentDate.toISOString());
             safeLocalStorage.set(STORAGE_KEYS.VIEW, view);
             safeLocalStorage.set(STORAGE_KEYS.SELECTED_USERS, selectedUsers.map(id => id.toString()).join(','));
 
             const newUrl = `${pathname}?${params.toString()}`;
-            if (window.location.pathname + '?' + params.toString() !== window.location.pathname + window.location.search) {
+
+            if (newUrl !== window.location.pathname + window.location.search) {
                 router.replace(newUrl, { scroll: false });
             }
         }, 100); // Debounce URL updates
 
         return () => clearTimeout(timeoutId);
-    }, [currentDate, selectedUsers, view, isClient, router, pathname]);
+    }, [currentDate, selectedUsers, view, isClient, router, pathname, urlAppointmentId]);
 
-    const navigateDate = (direction: number) => {
+    const navigateDate = useCallback((direction: number) => {
         const newDate = new Date(currentDate);
         if (view === 'day') newDate.setDate(currentDate.getDate() + direction);
         else if (view === 'week') newDate.setDate(currentDate.getDate() + (direction * 7));
         else if (view === 'month') newDate.setMonth(currentDate.getMonth() + direction);
         setCurrentDate(newDate);
-    };
+    }, [currentDate, view]);
 
-    const handleDayClickInMonthView = (clickedDate: Date) => {
+    const handleDayClickInMonthView = useCallback((clickedDate: Date) => {
         setCurrentDate(clickedDate);
         setView('day');
-    };
+    }, []);
 
-    const handleSaveAppointment = (appointmentData: AppointmentForm) => {
+    const handleSaveAppointment = useCallback((appointmentData: AppointmentForm) => {
         const user = users.find(u => u.id === appointmentData.userId);
         const newAppointment: SchedulerAppointment = {
             id: selectedAppointment?.id || crypto.randomUUID(),
@@ -325,7 +317,7 @@ export const useScheduler = ({
         }
         setShowAppointmentModal(false);
         setSelectedAppointment(null);
-    };
+    }, [users, selectedAppointment, appointments]);
 
     const visibleUsers = useMemo(() =>
         users.filter(user => selectedUsers.includes(user.id)),
@@ -336,7 +328,10 @@ export const useScheduler = ({
         appointments.filter(appointment => selectedUsers.includes(appointment.userId)),
         [appointments, selectedUsers]
     );
-
+    
+    const appointmentToURL = useCallback((appointment: SchedulerAppointment) => {
+        setUrlAppointmentId(appointment.id);
+    }, []);
     return {
         isClient,
         currentDate,
@@ -350,6 +345,7 @@ export const useScheduler = ({
         handleUserToggle,
         showAppointmentModal,
         setShowAppointmentModal,
+        appointmentToURL,
         showUserModal,
         setShowUserModal,
         selectedAppointment,

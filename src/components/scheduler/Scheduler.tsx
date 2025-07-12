@@ -1,7 +1,7 @@
 // components/scheduler/Scheduler.tsx
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useScheduler } from './hooks/useScheduler';
 import { User, SchedulerAppointment } from './types';
 
@@ -33,6 +33,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     setShowAppointmentModal,
     selectedAppointment,
     setSelectedAppointment,
+    appointmentToURL,
     navigateDate,
     handleSaveAppointment,
     handleDayClickInMonthView,
@@ -60,17 +61,18 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     return null;
   }, [users, selectedUsers, view]);
 
-  const handleAddAppointmentClick = () => {
+  const handleAddAppointmentClick = useCallback(() => {
     setSelectedAppointment(null);
     setShowAppointmentModal(true);
-  };
+  }, [setSelectedAppointment, setShowAppointmentModal]);
   
-  const handleAppointmentClick = (appointment: SchedulerAppointment) => {
+  const handleAppointmentClick = useCallback((appointment: SchedulerAppointment) => {
     if (!isDragging) {
       setSelectedAppointment(appointment);
       setShowAppointmentModal(true);
+      appointmentToURL(appointment);
     }
-  };
+  }, [isDragging, setSelectedAppointment, setShowAppointmentModal, appointmentToURL]);
 
   const renderView = () => {
     if (isLoading) {
