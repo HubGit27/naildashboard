@@ -138,7 +138,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
         {renderView()}
       </div>
 
-      {showAppointmentModal && (
+      {/* {showAppointmentModal && (
         <AppointmentModal
           isOpen={showAppointmentModal}
           onClose={() => setShowAppointmentModal(false)}
@@ -146,7 +146,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
           appointmentData={selectedAppointment}
           users={users}
         />
-      )}
+      )} */}
       
       {showUserModal && (
         <UserSelectionModal
