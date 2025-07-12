@@ -59,7 +59,7 @@ export const SchedulerHeader: React.FC<SchedulerHeaderProps> = ({
               <span>Calander</span>
             </button>
             {showDatePicker && (
-              <div class="absolute z-50 mt-2 bg-white rounded-md shadow-lg border">
+              <div className="absolute z-50 mt-2 bg-white rounded-md shadow-lg border">
                 <DatePicker selectedDate={currentDate} onDateChange={handleDateSelect} />
               </div>
             )}

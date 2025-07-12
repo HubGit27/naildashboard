@@ -226,21 +226,45 @@ export const useScheduler = ({
         handleDragEnd();
     }, [draggedAppointment, handleDragEnd]);
 
-    const confirmAppointmentChange = useCallback(() => {
+    const confirmAppointmentChange = useCallback(async () => {
         if (!pendingAppointmentChange) return;
 
         const { appointment, newStart, newEnd, newUserId } = pendingAppointmentChange;
 
-        const updatedAppointment: SchedulerAppointment = {
-            ...appointment,
-            start: newStart,
-            end: newEnd,
-            userId: newUserId,
-        };
+        try {
+            const response = await fetch(`/server-api/appointments/${appointment.id}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        startTime: newStart.toISOString(),
+                        endTime: newEnd.toISOString(),
+                        employeeId: newUserId,
+                    }),
+                }
+            );
 
-        setAppointments(appointments.map(a => a.id === appointment.id ? updatedAppointment : a));
-        setShowConfirmationModal(false);
-        setPendingAppointmentChange(null);
+            if (!response.ok) {
+                throw new Error('Failed to update appointment');
+            }
+
+            const updatedAppointment: SchedulerAppointment = {
+                ...appointment,
+                start: newStart,
+                end: newEnd,
+                userId: newUserId,
+            };
+
+            setAppointments(appointments.map(a => a.id === appointment.id ? updatedAppointment : a));
+        } catch (error) {
+            console.error("Failed to save appointment changes:", error);
+            // Optionally, revert the change in the UI or show an error message
+        } finally {
+            setShowConfirmationModal(false);
+            setPendingAppointmentChange(null);
+        }
     }, [pendingAppointmentChange, appointments]);
 
     const cancelAppointmentChange = useCallback(() => {
