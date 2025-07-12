@@ -129,7 +129,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
         viewingUserName={viewingUserName}
         onNavigate={navigateDate}
         onSetView={setView}
-        onToday={() => setCurrentDate(new Date())}
+        onDateSelect={setCurrentDate}
         onAddAppointment={handleAddAppointmentClick}
         onOpenUserSelector={() => setShowUserModal(true)}
       />
