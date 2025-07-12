@@ -23,6 +23,9 @@ const initialUsers = employees.map(emp => ({
 const CalendarPage = async ({ searchParams }: { searchParams: { [key: string]: string | undefined } }) => {
   const appointmentId = searchParams?.appointmentId;
   let appointment = null;
+
+  const allServices = await prisma.service.findMany();
+
   if (appointmentId) {
     const fetchedAppointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
@@ -32,9 +35,10 @@ const CalendarPage = async ({ searchParams }: { searchParams: { [key: string]: s
         appointmentServices: {
           include: {
             service: true,
-          }
-        }
-      }
+          },
+        },
+        payment: true,
+      },
     });
 
     if (fetchedAppointment) {
@@ -46,11 +50,25 @@ const CalendarPage = async ({ searchParams }: { searchParams: { [key: string]: s
           service: {
             ...as.service,
             price: as.service.price.toString(),
-          }
+          },
         })),
+        payment: fetchedAppointment.payment
+          ? {
+              ...fetchedAppointment.payment,
+              amount: fetchedAppointment.payment.amount.toString(),
+              tip: fetchedAppointment.payment.tip.toString(),
+              tax: fetchedAppointment.payment.tax.toString(),
+              total: fetchedAppointment.payment.total.toString(),
+            }
+          : null,
       };
     }
   }
+
+  const serializedServices = allServices.map(service => ({
+    ...service,
+    price: service.price.toString(),
+  }));
 
   return (
     <div className="p-4 flex gap-4 flex-col md:flex-row">
@@ -63,13 +81,13 @@ const CalendarPage = async ({ searchParams }: { searchParams: { [key: string]: s
       </div>
 
       <CollapsiblePanel>
-        {appointment && <AppointmentDetails appointment={appointment} />}
-        {/* <ResizeableColumnContainer title="Calendar" defaultHeight={400}>
+        {appointment && <AppointmentDetails appointment={appointment} allServices={serializedServices} allEmployees={initialUsers} />}
+        <ResizeableColumnContainer title="Calendar" defaultHeight={400}>
           <EventCalendarContainer searchParams={searchParams} />
         </ResizeableColumnContainer>
         <ResizeableColumnContainer title="Announcements" defaultHeight={300}>
           <Announcements />
-        </ResizeableColumnContainer> */}
+        </ResizeableColumnContainer>
       </CollapsiblePanel>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Prisma } from '@prisma/client';
-import { updateAppointment } from '@/lib/actions';
+import { updateAppointmentWithServices } from '@/lib/actions';
 
 type AppointmentWithDetails = Omit<Prisma.AppointmentGetPayload<{
   include: {
@@ -13,19 +13,28 @@ type AppointmentWithDetails = Omit<Prisma.AppointmentGetPayload<{
         service: true;
       };
     };
+    payment: true;
   };
-}>, 'appointmentServices'> & {
+}>, 'appointmentServices' | 'payment'> & {
   appointmentServices: (Omit<Prisma.AppointmentServiceGetPayload<{ include: { service: true } }>, 'price' | 'service'> & { 
     price: string; 
     service: Omit<Prisma.ServiceGetPayload<{}>, 'price'> & { price: string };
   })[];
+  payment: (Omit<Prisma.PaymentGetPayload<{}>, 'amount' | 'tip' | 'tax' | 'total'> & { 
+    amount: string; 
+    tip: string; 
+    tax: string; 
+    total: string; 
+  }) | null;
 };
 
 interface AppointmentDetailsProps {
   appointment: AppointmentWithDetails;
+  allServices: (Omit<Prisma.ServiceGetPayload<{}>, 'price'> & { price: string })[];
+  allEmployees: { id: string; name: string; }[];
 }
 
-const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment }) => {
+const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, allServices, allEmployees }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(appointment);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,9 +56,44 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment }) 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    if (name === 'employeeId') {
+        const selectedEmployee = allEmployees.find(emp => emp.id === value);
+        if(selectedEmployee) {
+            setFormData(prev => ({
+                ...prev,
+                employeeId: selectedEmployee.id,
+                employee: { ...prev.employee, id: selectedEmployee.id, firstName: selectedEmployee.name.split(' ')[0], lastName: selectedEmployee.name.split(' ')[1] || '' }
+            }));
+        }
+    } else {
+        setFormData(prev => ({
+            ...prev,
+            [name]: value,
+        }));
+    }
+  };
+
+  const handleAddService = (serviceId: string) => {
+    const serviceToAdd = allServices.find(s => s.id === serviceId);
+    if (serviceToAdd && !formData.appointmentServices.some(as => as.serviceId === serviceId)) {
+      const newAppointmentService = {
+        id: `new-${Math.random()}`,
+        appointmentId: id,
+        serviceId: serviceToAdd.id,
+        price: serviceToAdd.price,
+        service: serviceToAdd,
+      };
+      setFormData(prev => ({
+        ...prev,
+        appointmentServices: [...prev.appointmentServices, newAppointmentService],
+      }));
+    }
+  };
+
+  const handleRemoveService = (serviceId: string) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      appointmentServices: prev.appointmentServices.filter(as => as.serviceId !== serviceId),
     }));
   };
 
@@ -59,9 +103,11 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment }) 
         startTime: new Date(formData.startTime),
         endTime: new Date(formData.endTime),
         status: formData.status,
+        employeeId: formData.employeeId,
+        services: formData.appointmentServices.map(as => ({ id: as.serviceId, price: as.price.toString() })),
     };
 
-    const result = await updateAppointment(id, dataToUpdate);
+    const result = await updateAppointmentWithServices(id, dataToUpdate);
     if (result.success) {
         setIsEditing(false);
     } else {
@@ -106,7 +152,11 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment }) 
         <div>
           <h3 className="font-semibold text-lg mb-2 text-gray-700">Stylist</h3>
           {isEditing ? (
-            <input type="text" name="employee.firstName" value={`${employee.firstName} ${employee.lastName}`} onChange={handleInputChange} className="w-full p-2 border rounded" readOnly />
+            <select name="employeeId" value={employee.id} onChange={handleInputChange} className="w-full p-2 border rounded">
+                {allEmployees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                ))}
+            </select>
           ) : (
             <p className="text-gray-600">{employee.firstName} {employee.lastName}</p>
           )}
@@ -156,14 +206,31 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment }) 
       </div>
 
       <div className="mt-6">
-        <h3 className="font-semibold text-lg mb-2 text-gray-700">Services</h3>
-        <ul className="list-disc list-inside space-y-1 text-gray-600">
-          {appointmentServices.map(as => (
-            <li key={as.service.id}>
-              {as.service.name} - <span className="font-medium">${as.price.toString()}</span>
-            </li>
-          ))}
-        </ul>
+        <h3 className="font-semibold text-lg mb-2 text-gray-700">Notes</h3>
+        {isEditing ? (
+          <textarea name="notes" value={formData.notes || ''} onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))} className="w-full p-2 border rounded" />
+        ) : (
+          <p className="text-gray-600">{formData.notes || 'No notes for this appointment.'}</p>
+        )}
+      </div>
+
+      {formData.payment && (
+        <div className="mt-6">
+            <h3 className="font-semibold text-lg mb-2 text-gray-700">Payment Details</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+                <p><strong>Amount:</strong> ${formData.payment.amount}</p>
+                <p><strong>Tip:</strong> ${formData.payment.tip}</p>
+                <p><strong>Tax:</strong> ${formData.payment.tax}</p>
+                <p><strong>Total:</strong> ${formData.payment.total}</p>
+                <p><strong>Method:</strong> {formData.payment.method}</p>
+                <p><strong>Status:</strong> {formData.payment.status}</p>
+            </div>
+        </div>
+      )}
+
+      <div className="mt-6 text-xs text-gray-400">
+        <p>Created: {new Date(formData.createdAt).toLocaleString()}</p>
+        <p>Last Updated: {new Date(formData.updatedAt).toLocaleString()}</p>
       </div>
     </div>
   );
