@@ -24,7 +24,7 @@ CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'STAFF',
+    "role" "Role" NOT NULL DEFAULT 'MANAGER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -41,6 +41,17 @@ CREATE TABLE "Store" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Store_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OperatingHours" (
+    "id" TEXT NOT NULL,
+    "dayOfWeek" INTEGER NOT NULL,
+    "openTime" TIME NOT NULL,
+    "closeTime" TIME NOT NULL,
+    "storeId" TEXT NOT NULL,
+
+    CONSTRAINT "OperatingHours_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -393,6 +404,12 @@ CREATE TABLE "Announcement" (
 );
 
 -- CreateTable
+CREATE TABLE "_EmployeeToStore" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL
+);
+
+-- CreateTable
 CREATE TABLE "_SubjectToTeacher" (
     "A" INTEGER NOT NULL,
     "B" TEXT NOT NULL
@@ -474,6 +491,12 @@ CREATE UNIQUE INDEX "Class_name_key" ON "Class"("name");
 CREATE UNIQUE INDEX "Subject_name_key" ON "Subject"("name");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "_EmployeeToStore_AB_unique" ON "_EmployeeToStore"("A", "B");
+
+-- CreateIndex
+CREATE INDEX "_EmployeeToStore_B_index" ON "_EmployeeToStore"("B");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "_SubjectToTeacher_AB_unique" ON "_SubjectToTeacher"("A", "B");
 
 -- CreateIndex
@@ -481,6 +504,9 @@ CREATE INDEX "_SubjectToTeacher_B_index" ON "_SubjectToTeacher"("B");
 
 -- AddForeignKey
 ALTER TABLE "Store" ADD CONSTRAINT "Store_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OperatingHours" ADD CONSTRAINT "OperatingHours_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Schedule" ADD CONSTRAINT "Schedule_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -565,6 +591,12 @@ ALTER TABLE "Event" ADD CONSTRAINT "Event_classId_fkey" FOREIGN KEY ("classId") 
 
 -- AddForeignKey
 ALTER TABLE "Announcement" ADD CONSTRAINT "Announcement_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_EmployeeToStore" ADD CONSTRAINT "_EmployeeToStore_A_fkey" FOREIGN KEY ("A") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_EmployeeToStore" ADD CONSTRAINT "_EmployeeToStore_B_fkey" FOREIGN KEY ("B") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_SubjectToTeacher" ADD CONSTRAINT "_SubjectToTeacher_A_fkey" FOREIGN KEY ("A") REFERENCES "Subject"("id") ON DELETE CASCADE ON UPDATE CASCADE;

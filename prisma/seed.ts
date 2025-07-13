@@ -14,6 +14,7 @@ async function loadNailStoreData() {
     await seedSchedules();
     await seedAppointments();
     await seedSettings();
+    await seedStores();
 }
 
 async function clearDatabase(){
@@ -117,6 +118,7 @@ async function seedUsers() {
   console.log('Users seeded');
 }
 
+
 async function seedStores() {
   // Get the owner user
   const owner = await prisma.user.findFirst({
@@ -129,7 +131,7 @@ async function seedStores() {
   }
   
   // Create a store linked to the owner
-  await prisma.store.create({
+  const store = await prisma.store.create({
     data: {
       storeName: 'Glamour Nails & Spa',
       address: '123 Beauty Blvd, Style City, SC 12345',
@@ -137,9 +139,29 @@ async function seedStores() {
     }
   });
   
-  console.log('Stores seeded');
+  // Create operating hours for the store
+  const operatingHoursData = [
+    // Monday - Friday: 9:00 AM - 7:00 PM
+    { dayOfWeek: 1, openTime: new Date('1970-01-01T09:00:00Z'), closeTime: new Date('1970-01-01T19:00:00Z'), storeId: store.id },
+    { dayOfWeek: 2, openTime: new Date('1970-01-01T09:00:00Z'), closeTime: new Date('1970-01-01T19:00:00Z'), storeId: store.id },
+    { dayOfWeek: 3, openTime: new Date('1970-01-01T09:00:00Z'), closeTime: new Date('1970-01-01T19:00:00Z'), storeId: store.id },
+    { dayOfWeek: 4, openTime: new Date('1970-01-01T09:00:00Z'), closeTime: new Date('1970-01-01T19:00:00Z'), storeId: store.id },
+    { dayOfWeek: 5, openTime: new Date('1970-01-01T09:00:00Z'), closeTime: new Date('1970-01-01T19:00:00Z'), storeId: store.id },
+    
+    // Saturday: 9:00 AM - 6:00 PM
+    { dayOfWeek: 6, openTime: new Date('1970-01-01T09:00:00Z'), closeTime: new Date('1970-01-01T18:00:00Z'), storeId: store.id },
+    
+    // Sunday: 11:00 AM - 5:00 PM
+    { dayOfWeek: 7, openTime: new Date('1970-01-01T11:00:00Z'), closeTime: new Date('1970-01-01T17:00:00Z'), storeId: store.id },
+  ];
+  
+  // Create all operating hours
+  await prisma.operatingHours.createMany({
+    data: operatingHoursData
+  });
+  
+  console.log('Stores and operating hours seeded');
 }
-
 async function seedCustomers() {
   const customers = [
     {
