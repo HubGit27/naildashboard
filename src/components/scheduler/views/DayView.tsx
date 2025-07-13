@@ -1,7 +1,7 @@
 // components/scheduler/views/DayView.tsx
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { User, SchedulerAppointment } from '../types';
 import { generateTimeSlots } from '../utils';
 
@@ -28,7 +28,25 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
 };
 
 export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop }) => {
-    const hourTimeSlots = generateTimeSlots(60);
+    const { startHour, endHour, hourTimeSlots } = useMemo(() => {
+        let minHour = 9;
+        let maxHour = 20;
+
+        appointments.forEach(apt => {
+            if (isSameDay(apt.start, currentDate)) {
+                minHour = Math.min(minHour, apt.start.getHours());
+                maxHour = Math.max(maxHour, apt.end.getHours());
+            }
+        });
+
+        const slots = generateTimeSlots(minHour, maxHour, 60);
+        return { startHour: minHour, endHour: maxHour, hourTimeSlots: slots };
+    }, [currentDate, appointments]);
+
+const calculateTopPosition = (date: Date) => {
+    const startMinutes = (date.getHours() - startHour) * 60 + date.getMinutes();
+    return (startMinutes / 60) * HOUR_ROW_HEIGHT;
+};
     
     const [columnWidths, setColumnWidths] = useState<number[]>([]);
     const [dragOverInfo, setDragOverInfo] = useState<{ userId: string | number; time: string } | null>(null);
@@ -60,7 +78,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointmen
         const rect = userColumn.getBoundingClientRect();
         const offsetY = e.clientY - rect.top - dragStartOffset - 50; // Adjust for initial drag offset
         
-        const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60);
+        const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60) + (startHour * 60);
         const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;
         const hour = Math.floor(interval / 60).toString().padStart(2, '0');
         const minute = (interval % 60).toString().padStart(2, '0');
@@ -170,7 +188,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointmen
                                 <div 
                                     className="absolute bg-blue-100 opacity-50 pointer-events-none"
                                     style={{
-                                        top: `${(parseInt(dragOverInfo.time.split(':')[0]) * 60 + parseInt(dragOverInfo.time.split(':')[1])) / 60 * HOUR_ROW_HEIGHT}px`,
+                                        top: `${calculateTopPosition(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), parseInt(dragOverInfo.time.split(':')[0]), parseInt(dragOverInfo.time.split(':')[1].split(' ')[0])))}px`,
                                         height: `${((draggedAppointment.end.getTime() - draggedAppointment.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT}px`,
                                         left: '0',
                                         right: '0',
@@ -186,7 +204,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointmen
                                         const startMinutes = appointment.start.getHours() * 60 + appointment.start.getMinutes();
                                         const endMinutes = appointment.end.getHours() * 60 + appointment.end.getMinutes();
                                         const durationMinutes = endMinutes - startMinutes;
-                                        const top = (startMinutes / 60) * HOUR_ROW_HEIGHT;
+                                        const top = calculateTopPosition(appointment.start);
                                         const height = (durationMinutes / 60) * HOUR_ROW_HEIGHT;
 
                                         return (

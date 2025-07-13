@@ -7,11 +7,13 @@ import { MonthDay, Event } from './types';
  * @param interval - The interval in minutes between each slot (e.g., 15, 30, 60).
  * @returns An array of strings representing time slots (e.g., "09:00").
  */
-export const generateTimeSlots = (interval: number = 60): string[] => {
+export const generateTimeSlots = (startHour: number, endHour: number, interval: number = 60): string[] => {
   const slots: string[] = [];
-  for (let hour = 0; hour < 24; hour++) {
+  for (let hour = startHour; hour <= endHour; hour++) {
     for (let minute = 0; minute < 60; minute += interval) {
-        slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
+      const date = new Date();
+      date.setHours(hour, minute);
+      slots.push(date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
     }
   }
   return slots;
