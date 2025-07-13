@@ -27,7 +27,24 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
 
 export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop }) => {
   const weekDays = getWeekDays(currentDate);
-  const hourTimeSlots = generateTimeSlots(60);
+  const { startHour, endHour, hourTimeSlots } = React.useMemo(() => {
+    let minHour = 9;
+    let maxHour = 20;
+
+    appointments.forEach(apt => {
+      const aptDay = apt.start.getDay();
+      const weekStartDay = weekDays[0].getDay();
+      const weekEndDay = weekDays[6].getDay();
+
+      if (aptDay >= weekStartDay && aptDay <= weekEndDay) {
+        minHour = Math.min(minHour, apt.start.getHours());
+        maxHour = Math.max(maxHour, apt.end.getHours());
+      }
+    });
+
+    const slots = generateTimeSlots(minHour, maxHour, 60);
+    return { startHour: minHour, endHour: maxHour, hourTimeSlots: slots };
+  }, [appointments, weekDays]);
 
   const [dragOverInfo, setDragOverInfo] = useState<{ date: Date; time: string } | null>(null);
   const [dragStartOffset, setDragStartOffset] = useState(0);
@@ -78,10 +95,10 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
   };
 
   const getAppointmentStyle = (appointment: SchedulerAppointment): React.CSSProperties => {
-    const startHour = appointment.start.getHours() + appointment.start.getMinutes() / 60;
-    const durationHours = (appointment.end.getTime() - appointment.start.getTime()) / (1000 * 60 * 60);
-    const top = startHour * HOUR_ROW_HEIGHT;
-    const height = durationHours * HOUR_ROW_HEIGHT;
+    const startMinutes = (appointment.start.getHours() - startHour) * 60 + appointment.start.getMinutes();
+    const durationMinutes = (appointment.end.getTime() - appointment.start.getTime()) / (1000 * 60);
+    const top = (startMinutes / 60) * HOUR_ROW_HEIGHT;
+    const height = (durationMinutes / 60) * HOUR_ROW_HEIGHT;
 
     return {
       position: 'absolute',

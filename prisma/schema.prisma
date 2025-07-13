@@ -33,6 +33,16 @@ model Store {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   employees      Employee[] 
+  operatingHours OperatingHours[]
+}
+
+model OperatingHours {
+  id          String   @id @default(uuid())
+  dayOfWeek   Int      // 1 for Monday, 2 for Tuesday, etc.
+  openTime    DateTime @db.Time
+  closeTime   DateTime @db.Time
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
 }
 
 model Employee {
