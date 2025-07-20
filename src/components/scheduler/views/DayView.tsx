@@ -15,6 +15,8 @@ interface DayViewProps {
   onDragStart: (event: React.DragEvent, schedulerAppointment: SchedulerAppointment) => void;
   onDragEnd: () => void;
   onDrop: (targetDate: Date, targetTime: string, targetUserId: string | number) => void;
+  columnWidths: number[];
+  setColumnWidths: (widths: number[]) => void;
 }
 
 const HOUR_ROW_HEIGHT = 60; // in pixels
@@ -27,7 +29,7 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
            date1.getDate() === date2.getDate();
 };
 
-export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop }) => {
+export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop, columnWidths, setColumnWidths }) => {
     const { startHour, endHour, hourTimeSlots } = useMemo(() => {
         let minHour = 9;
         let maxHour = 20;
@@ -48,7 +50,6 @@ const calculateTopPosition = (date: Date) => {
     return (startMinutes / 60) * HOUR_ROW_HEIGHT;
 };
     
-    const [columnWidths, setColumnWidths] = useState<number[]>([]);
     const [dragOverInfo, setDragOverInfo] = useState<{ userId: string | number; time: string } | null>(null);
     const [dragStartOffset, setDragStartOffset] = useState(0);
 
@@ -56,13 +57,13 @@ const calculateTopPosition = (date: Date) => {
     const userColumnRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     useEffect(() => {
-        if (containerRef.current && users.length > 0) {
+        if (containerRef.current && users.length > 0 && columnWidths.length !== users.length) {
             const containerWidth = containerRef.current.offsetWidth;
             const widthPerUser = Math.max(MIN_COLUMN_WIDTH, containerWidth / users.length);
             setColumnWidths(Array(users.length).fill(widthPerUser));
         }
         userColumnRefs.current = userColumnRefs.current.slice(0, users.length);
-    }, [users]);
+    }, [users, columnWidths.length, setColumnWidths]);
 
     const handleLocalDragStart = (e: React.DragEvent<HTMLDivElement>, appointment: SchedulerAppointment) => {
         const rect = e.currentTarget.getBoundingClientRect();

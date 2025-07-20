@@ -49,6 +49,8 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     showConfirmationModal, // Destructure showConfirmationModal
     confirmAppointmentChange, // Destructure confirmAppointmentChange
     cancelAppointmentChange, // Destructure cancelAppointmentChange
+    columnWidths, // Destructure columnWidths
+    setColumnWidths, // Destructure setColumnWidths
     isLoading,
     error,
   } = useScheduler({ initialUsers, searchParams });
@@ -94,6 +96,8 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDrop={handleDrop}
+            columnWidths={columnWidths} // Pass columnWidths
+            setColumnWidths={setColumnWidths} // Pass setColumnWidths
         />;
       case 'week':
         return <WeekView 
