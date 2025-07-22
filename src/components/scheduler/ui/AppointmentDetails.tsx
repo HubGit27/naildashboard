@@ -188,6 +188,7 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
             <select name="status" value={status} onChange={handleInputChange} className="w-full p-2 border rounded">
               <option value="SCHEDULED">Scheduled</option>
               <option value="CONFIRMED">Confirmed</option>
+              <option value="WAITING">Waiting</option>
               <option value="IN_PROGRESS">In Progress</option>
               <option value="COMPLETED">Completed</option>
               <option value="CANCELLED">Cancelled</option>
