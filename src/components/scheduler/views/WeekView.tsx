@@ -66,7 +66,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
     const rect = dayColumn.getBoundingClientRect();
     const offsetY = e.clientY - rect.top - dragStartOffset -50;
     
-    const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60);
+    const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60) + (startHour * 60);
     const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;
     const hour = Math.floor(interval / 60).toString().padStart(2, '0');
     const minute = (interval % 60).toString().padStart(2, '0');
@@ -152,7 +152,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
                     <div 
                         className="absolute bg-blue-100 opacity-50 pointer-events-none"
                         style={{
-                            top: `${(parseInt(dragOverInfo.time.split(':')[0]) * 60 + parseInt(dragOverInfo.time.split(':')[1])) / 60 * HOUR_ROW_HEIGHT}px`,
+                            top: `${((parseInt(dragOverInfo.time.split(':')[0]) - startHour) * 60 + parseInt(dragOverInfo.time.split(':')[1])) / 60 * HOUR_ROW_HEIGHT}px`,
                             height: `${((draggedAppointment.end.getTime() - draggedAppointment.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT}px`,
                             left: '0',
                             right: '0',
