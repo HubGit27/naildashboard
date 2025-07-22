@@ -78,7 +78,7 @@ const EventCalendar = () => {
         localStorage.setItem('selectedCalendarDate', newDate.toISOString());
       }
     }
-  }, [searchParams, isHydrated, isUpdatingFromCalendar]);
+  }, [searchParams, isHydrated, isUpdatingFromCalendar, value]);
 
   // Sync localStorage to URL on component mount (preserve other search params)
   useEffect(() => {

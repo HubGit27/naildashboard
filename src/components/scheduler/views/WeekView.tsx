@@ -3,7 +3,8 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { SchedulerAppointment } from '../types';
-import { getWeekDays, generateTimeSlots } from '../utils';
+import { getWeekDays, generateTimeSlots, getAppointmentColor } from '../utils';
+import TimeIndicator from '../ui/TimeIndicator';
 
 interface WeekViewProps {
   currentDate: Date;
@@ -106,7 +107,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
       height: `${height}px`,
       left: '4px',
       right: '4px',
-      backgroundColor: appointment.color,
+      backgroundColor: getAppointmentColor(appointment.status),
       zIndex: 20,
       opacity: isDragging ? 0.5 : 1
     };
@@ -140,6 +141,9 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
             </div>
 
             <div className={`relative ${index < weekDays.length - 1 ? 'border-r border-gray-200' : ''}`}>
+                {isSameDay(day, new Date()) && (
+                    <TimeIndicator startHour={startHour} hourRowHeight={HOUR_ROW_HEIGHT} />
+                )}
                 {hourTimeSlots.map(time => (
                     <div key={time} style={{ height: `${HOUR_ROW_HEIGHT}px` }} className="border-t border-gray-100"></div>
                 ))}

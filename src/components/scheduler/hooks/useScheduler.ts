@@ -167,7 +167,7 @@ export const useScheduler = ({
                     start: new Date(apt.startTime),
                     end: new Date(apt.endTime),
                     userId: apt.employeeId,
-                    color: generateColor(apt.employeeId),
+                    status: apt.status,
                 }));
 
                 setAppointments(formattedAppointments);
@@ -352,7 +352,7 @@ export const useScheduler = ({
             title: appointmentData.title,
             start: new Date(appointmentData.start),
             end: new Date(appointmentData.end),
-            color: user ? user.color : '#3b82f6',
+            status: 'scheduled', // Default status
             userId: appointmentData.userId
         };
         if (selectedAppointment) {

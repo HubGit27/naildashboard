@@ -3,7 +3,8 @@
 
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { User, SchedulerAppointment } from '../types';
-import { generateTimeSlots } from '../utils';
+import { generateTimeSlots, getAppointmentColor } from '../utils';
+import TimeIndicator from '../ui/TimeIndicator';
 
 interface DayViewProps {
   currentDate: Date;
@@ -149,7 +150,7 @@ const calculateTopPosition = (date: Date) => {
 
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    }, []);
+    }, [setColumnWidths]);
 
     if (users.length === 0) {
         return <div className="p-8 text-center text-gray-500">Select a user to see their schedule.</div>;
@@ -181,6 +182,9 @@ const calculateTopPosition = (date: Date) => {
                         </div>
                         
                         <div className={`relative ${index < users.length - 1 ? 'border-r border-gray-200' : ''}`}>
+                            {isSameDay(currentDate, new Date()) && (
+                                <TimeIndicator startHour={startHour} hourRowHeight={HOUR_ROW_HEIGHT} />
+                            )}
                             {hourTimeSlots.map(time => (
                                 <div key={time} style={{ height: `${HOUR_ROW_HEIGHT}px` }} className="border-t border-gray-100"></div>
                             ))}
@@ -219,7 +223,7 @@ const calculateTopPosition = (date: Date) => {
                                                 style={{
                                                     top: `${top}px`,
                                                     height: `${height}px`,
-                                                    backgroundColor: appointment.color,
+                                                    backgroundColor: getAppointmentColor(appointment.status),
                                                     left: '4px',
                                                     right: '4px',
                                                     opacity: isDragging ? 0.5 : 1,

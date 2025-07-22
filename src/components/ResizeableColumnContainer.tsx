@@ -102,7 +102,7 @@ const ResizeableColumnContainer = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, minHeight, maxHeight]);
+  }, [isDragging, minHeight, maxHeight, collapseThreshold, isCollapsed]);
 
   return (
     <div className="flex flex-col border rounded shadow-sm bg-white">

@@ -1,6 +1,28 @@
 // components/scheduler/utils.ts
 
-import { MonthDay, Event } from './types';
+import { MonthDay, SchedulerAppointment } from './types';
+
+export const getAppointmentColor = (status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'waiting'): string => {
+  console.log(`Appointment status: ${status}`); // Debugging line
+  switch (status.toLowerCase()) {
+    case 'scheduled':
+      return 'blue';
+    case 'confirmed':
+      return 'teal';
+    case 'in_progress':
+      return 'orange';
+    case 'completed':
+      return 'green';
+    case 'cancelled':
+      return 'gray';
+    case 'no_show':
+      return 'red';
+    case 'waiting':
+      return 'yellow';
+    default:
+      return 'gray';
+  }
+};
 
 /**
  * Generates an array of time slots for a 24-hour day.
