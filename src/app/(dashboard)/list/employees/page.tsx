@@ -3,15 +3,15 @@ import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
-import { Class, Prisma, Subject, Teacher } from "@prisma/client";
+import { Employee, EmployeeService, Store, Prisma } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { auth } from "@clerk/nextjs/server";
 
-type TeacherList = Teacher & { subjects: Subject[] } & { classes: Class[] };
+type EmployeeList = Employee & { employeeServices: EmployeeService[] } & { stores: Store[] };
 
-const TeacherListPage = async ({
+const EmployeeListPage = async ({
   searchParams,
 }: {
   searchParams: { [key: string]: string | undefined };
@@ -24,18 +24,18 @@ const TeacherListPage = async ({
       accessor: "info",
     },
     {
-      header: "Teacher ID",
-      accessor: "teacherId",
+      header: "Employee ID",
+      accessor: "employeeId",
       className: "hidden md:table-cell",
     },
     {
-      header: "Subjects",
-      accessor: "subjects",
+      header: "Position",
+      accessor: "position",
       className: "hidden md:table-cell",
     },
     {
-      header: "Classes",
-      accessor: "classes",
+      header: "Stores",
+      accessor: "stores",
       className: "hidden md:table-cell",
     },
     {
@@ -58,45 +58,40 @@ const TeacherListPage = async ({
       : []),
   ];
 
-  const renderRow = (item: TeacherList) => (
+  const renderRow = (item: EmployeeList) => (
     <tr
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
     >
       <td className="flex items-center gap-4 p-4">
-        <Image
+        {/* <Image
           src={item.img || "/noAvatar.png"}
           alt=""
           width={40}
           height={40}
           className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
-        />
+        /> */}
         <div className="flex flex-col">
-          <h3 className="font-semibold">{item.name}</h3>
+          <h3 className="font-semibold">{item.firstName} {item.lastName}</h3>
           <p className="text-xs text-gray-500">{item?.email}</p>
         </div>
       </td>
       <td className="hidden md:table-cell">{item.username}</td>
+      <td className="hidden md:table-cell">{item.position}</td>
       <td className="hidden md:table-cell">
-        {item.subjects.map((subject) => subject.name).join(",")}
-      </td>
-      <td className="hidden md:table-cell">
-        {item.classes.map((classItem) => classItem.name).join(",")}
+        {item.stores.map((store) => store.storeName).join(",")}
       </td>
       <td className="hidden md:table-cell">{item.phone}</td>
       <td className="hidden md:table-cell">{item.address}</td>
       <td>
         <div className="flex items-center gap-2">
-          <Link href={`/list/teachers/${item.id}`}>
+          <Link href={`/list/employees/${item.id}`}>
             <button className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaSky">
               <Image src="/view.png" alt="" width={16} height={16} />
             </button>
           </Link>
           {role === "admin" && (
-            // <button className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaPurple">
-            //   <Image src="/delete.png" alt="" width={16} height={16} />
-            // </button>
-            <FormContainer table="teacher" type="delete" id={item.id} />
+            <FormContainer table="employee" type="delete" id={item.id} />
           )}
         </div>
       </td>
@@ -108,21 +103,17 @@ const TeacherListPage = async ({
 
   // URL PARAMS CONDITION
 
-  const query: Prisma.TeacherWhereInput = {};
+  const query: Prisma.EmployeeWhereInput = {};
 
   if (queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {
       if (value !== undefined) {
         switch (key) {
-          case "classId":
-            query.lessons = {
-              some: {
-                classId: parseInt(value),
-              },
-            };
-            break;
           case "search":
-            query.name = { contains: value, mode: "insensitive" };
+            query.OR = [
+              { firstName: { contains: value, mode: "insensitive" } },
+              { lastName: { contains: value, mode: "insensitive" } },
+            ];
             break;
           default:
             break;
@@ -132,23 +123,23 @@ const TeacherListPage = async ({
   }
 
   const [data, count] = await prisma.$transaction([
-    prisma.teacher.findMany({
+    prisma.employee.findMany({
       where: query,
       include: {
-        subjects: true,
-        classes: true,
+        employeeServices: true,
+        stores: true,
       },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
     }),
-    prisma.teacher.count({ where: query }),
+    prisma.employee.count({ where: query }),
   ]);
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
       {/* TOP */}
       <div className="flex items-center justify-between">
-        <h1 className="hidden md:block text-lg font-semibold">All Teachers</h1>
+        <h1 className="hidden md:block text-lg font-semibold">All Employees</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
@@ -159,7 +150,7 @@ const TeacherListPage = async ({
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
             {role === "admin" && (
-              <FormContainer table="teacher" type="create" />
+              <FormContainer table="employee" type="create" />
             )}
           </div>
         </div>
@@ -172,4 +163,4 @@ const TeacherListPage = async ({
   );
 };
 
-export default TeacherListPage;
+export default EmployeeListPage;
