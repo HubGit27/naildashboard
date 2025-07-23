@@ -18,6 +18,7 @@ interface DayViewProps {
   onDrop: (targetDate: Date, targetTime: string, targetUserId: string | number) => void;
   columnWidths: number[];
   setColumnWidths: (widths: number[]) => void;
+  onEmptySlotClick: (date: Date, time: string, userId: string | number) => void;
 }
 
 const HOUR_ROW_HEIGHT = 60; // in pixels
@@ -30,7 +31,7 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
            date1.getDate() === date2.getDate();
 };
 
-export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop, columnWidths, setColumnWidths }) => {
+export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop, columnWidths, setColumnWidths, onEmptySlotClick }) => {
     const { startHour, endHour, hourTimeSlots } = useMemo(() => {
         let minHour = 9;
         let maxHour = 20;
@@ -181,7 +182,22 @@ const calculateTopPosition = (date: Date) => {
                             {user.name}
                         </div>
                         
-                        <div className={`relative ${index < users.length - 1 ? 'border-r border-gray-200' : ''}`}>
+                        <div
+                            className={`relative cursor-pointer ${index < users.length - 1 ? 'border-r border-gray-200' : ''}`}
+                            onClick={(e) => {
+                                // Only handle click if it's not on an appointment
+                                if (e.target === e.currentTarget || e.target.closest('.appointment-item') === null) {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const offsetY = e.clientY - rect.top;
+                                    const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60) + (startHour * 60);
+                                    const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;
+                                    const hour = Math.floor(interval / 60).toString().padStart(2, '0');
+                                    const minute = (interval % 60).toString().padStart(2, '0');
+                                    const clickedTime = `${hour}:${minute}`;
+                                    onEmptySlotClick(currentDate, clickedTime, user.id);
+                                }
+                            }}
+                        >
                             {isSameDay(currentDate, new Date()) && (
                                 <TimeIndicator startHour={startHour} hourRowHeight={HOUR_ROW_HEIGHT} />
                             )}
@@ -219,7 +235,7 @@ const calculateTopPosition = (date: Date) => {
                                                 onDragStart={(e) => handleLocalDragStart(e, appointment)}
                                                 onDragEnd={onDragEnd}
                                                 onClick={() => onAppointmentClick(appointment)}
-                                                className="absolute p-2 rounded text-white text-xs cursor-grab shadow-md pointer-events-auto"
+                                                className="absolute p-2 rounded text-white text-xs cursor-grab shadow-md pointer-events-auto appointment-item"
                                                 style={{
                                                     top: `${top}px`,
                                                     height: `${height}px`,

@@ -15,6 +15,7 @@ interface WeekViewProps {
   onDragStart: (event: React.DragEvent, schedulerAppointment: SchedulerAppointment) => void;
   onDragEnd: () => void;
   onDrop: (targetDate: Date, targetTime: string) => void;
+  onEmptySlotClick: (date: Date, time: string) => void;
 }
 
 const HOUR_ROW_HEIGHT = 60; // in pixels
@@ -26,7 +27,7 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
            date1.getDate() === date2.getDate();
 };
 
-export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop }) => {
+export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop, onEmptySlotClick }) => {
   const weekDays = getWeekDays(currentDate);
   const { startHour, endHour, hourTimeSlots } = React.useMemo(() => {
     let minHour = 9;
@@ -113,7 +114,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
     };
   };
 
-  return (
+return (
     <div className="flex h-full bg-white">
       <div className="w-16 flex-shrink-0 border-r border-gray-200">
         <div className="h-14 border-b"></div>
@@ -132,6 +133,19 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
             onDragOver={(e) => handleDragOver(e, day, index)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, day, index)}
+            onClick={(e) => {
+                // Only handle click if it's not on an appointment
+                if (e.target === e.currentTarget || e.target.closest('.appointment-item') === null) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const offsetY = e.clientY - rect.top;
+                    const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60) + (startHour * 60);
+                    const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;
+                    const hour = Math.floor(interval / 60).toString().padStart(2, '0');
+                    const minute = (interval % 60).toString().padStart(2, '0');
+                    const clickedTime = `${hour}:${minute}`;
+                    onEmptySlotClick(day, clickedTime);
+                }
+            }}
           >
             <div className="sticky top-0 bg-white z-30 p-2 border-b text-center h-14 flex-shrink-0">
               <div className="text-xs text-gray-500">{day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</div>
@@ -140,7 +154,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
               </div>
             </div>
 
-            <div className={`relative ${index < weekDays.length - 1 ? 'border-r border-gray-200' : ''}`}>
+            <div className={`relative cursor-pointer ${index < weekDays.length - 1 ? 'border-r border-gray-200' : ''}`}>
                 {isSameDay(day, new Date()) && (
                     <TimeIndicator startHour={startHour} hourRowHeight={HOUR_ROW_HEIGHT} />
                 )}
@@ -171,7 +185,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
                       onDragEnd={onDragEnd}
                       onClick={() => onAppointmentClick(appointment)}
                       style={getAppointmentStyle(appointment)}
-                      className="p-1 rounded text-white text-xs cursor-grab hover:opacity-80 transition-opacity"
+                      className="p-1 rounded text-white text-xs cursor-grab hover:opacity-80 transition-opacity appointment-item"
                     >
                       <p className="font-bold truncate">{appointment.title}</p>
                       <p className="opacity-80 truncate">

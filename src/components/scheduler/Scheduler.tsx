@@ -53,6 +53,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
     setColumnWidths, // Destructure setColumnWidths
     isLoading,
     error,
+    handleEmptySlotClick,
   } = useScheduler({ initialUsers, searchParams });
 
   const viewingUserName = useMemo(() => {
@@ -71,10 +72,9 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
   const handleAppointmentClick = useCallback((appointment: SchedulerAppointment) => {
     if (!isDragging) {
       setSelectedAppointment(appointment);
-      setShowAppointmentModal(true);
       appointmentToURL(appointment);
     }
-  }, [isDragging, setSelectedAppointment, setShowAppointmentModal, appointmentToURL]);
+  }, [isDragging, setSelectedAppointment, appointmentToURL]);
 
   const renderView = () => {
     if (isLoading) {
@@ -98,6 +98,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
             onDrop={handleDrop}
             columnWidths={columnWidths} // Pass columnWidths
             setColumnWidths={setColumnWidths} // Pass setColumnWidths
+            onEmptySlotClick={handleEmptySlotClick}
         />;
       case 'week':
         return <WeekView 
@@ -109,6 +110,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDrop={handleDrop}
+            onEmptySlotClick={handleEmptySlotClick}
         />;
       case 'month':
         return <MonthView 
@@ -142,7 +144,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
         {renderView()}
       </div>
 
-      {/* {showAppointmentModal && (
+      {showAppointmentModal && (
         <AppointmentModal
           isOpen={showAppointmentModal}
           onClose={() => setShowAppointmentModal(false)}
@@ -150,7 +152,7 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
           appointmentData={selectedAppointment}
           users={users}
         />
-      )} */}
+      )}
       
       {showUserModal && (
         <UserSelectionModal
@@ -169,6 +171,8 @@ const Scheduler: React.FC<SchedulerProps> = ({initialUsers, searchParams }) => {
         onCancel={cancelAppointmentChange}
         message="Are you sure you want to move this appointment?"
       />
+
+      
     </div>
   );
 };

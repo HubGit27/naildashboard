@@ -345,6 +345,23 @@ export const useScheduler = ({
         setView('day');
     }, []);
 
+    const handleEmptySlotClick = useCallback((date: Date, time: string, userId?: string | number) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        const newStart = new Date(date);
+        newStart.setHours(hours, minutes, 0, 0);
+        const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000); // Default 1 hour duration
+
+        setSelectedAppointment({
+            id: crypto.randomUUID(),
+            title: '',
+            start: newStart,
+            end: newEnd,
+            userId: userId || (selectedUsers.length > 0 ? selectedUsers[0] : users[0]?.id),
+            status: 'scheduled',
+        });
+        setShowAppointmentModal(true);
+    }, [selectedUsers, users]);
+
     const handleSaveAppointment = useCallback((appointmentData: AppointmentForm) => {
         const user = users.find(u => u.id === appointmentData.userId);
         const newAppointment: SchedulerAppointment = {
@@ -410,5 +427,6 @@ export const useScheduler = ({
         setColumnWidths, // Expose setColumnWidths
         isLoading,
         error,
+        handleEmptySlotClick,
     };
 };
