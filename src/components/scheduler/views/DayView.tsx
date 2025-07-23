@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { User, SchedulerAppointment } from '../types';
-import { generateTimeSlots, getAppointmentColor } from '../utils';
+import { generateTimeSlots, getAppointmentColor, getOverlappingAppointmentsLayout } from '../utils';
 import TimeIndicator from '../ui/TimeIndicator';
 
 interface DayViewProps {
@@ -219,14 +219,10 @@ const calculateTopPosition = (date: Date) => {
                             )}
 
                             <div className="absolute inset-0 top-0 z-20 pointer-events-none">
-                                {appointments
-                                    .filter(appointment => appointment.userId === user.id && isSameDay(appointment.start, currentDate))
+                                {getOverlappingAppointmentsLayout(appointments.filter(appointment => appointment.userId === user.id && isSameDay(appointment.start, currentDate)))
                                     .map(appointment => {
-                                        const startMinutes = appointment.start.getHours() * 60 + appointment.start.getMinutes();
-                                        const endMinutes = appointment.end.getHours() * 60 + appointment.end.getMinutes();
-                                        const durationMinutes = endMinutes - startMinutes;
                                         const top = calculateTopPosition(appointment.start);
-                                        const height = (durationMinutes / 60) * HOUR_ROW_HEIGHT;
+                                        const height = ((appointment.end.getTime() - appointment.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT;
 
                                         return (
                                             <div 
@@ -240,8 +236,8 @@ const calculateTopPosition = (date: Date) => {
                                                     top: `${top}px`,
                                                     height: `${height}px`,
                                                     backgroundColor: getAppointmentColor(appointment.status),
-                                                    left: '4px',
-                                                    right: '4px',
+                                                    left: `${appointment.left}%`,
+                                                    width: `${appointment.width}%`,
                                                     opacity: isDragging ? 0.5 : 1,
                                                 }}
                                             >

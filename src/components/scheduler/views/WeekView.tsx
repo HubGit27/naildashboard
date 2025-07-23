@@ -3,7 +3,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { SchedulerAppointment } from '../types';
-import { getWeekDays, generateTimeSlots, getAppointmentColor } from '../utils';
+import { getWeekDays, generateTimeSlots, getAppointmentColor, getOverlappingAppointmentsLayout } from '../utils';
 import TimeIndicator from '../ui/TimeIndicator';
 
 interface WeekViewProps {
@@ -175,8 +175,7 @@ return (
                     />
                 )}
                 
-                {appointments
-                  .filter(appointment => isSameDay(appointment.start, day))
+                {getOverlappingAppointmentsLayout(appointments.filter(appointment => isSameDay(appointment.start, day)))
                   .map(appointment => (
                     <div
                       key={appointment.id}
@@ -184,7 +183,11 @@ return (
                       onDragStart={(e) => handleLocalDragStart(e, appointment)}
                       onDragEnd={onDragEnd}
                       onClick={() => onAppointmentClick(appointment)}
-                      style={getAppointmentStyle(appointment)}
+                      style={{
+                        ...getAppointmentStyle(appointment),
+                        left: `${appointment.left}%`,
+                        width: `${appointment.width}%`,
+                      }}
                       className="p-1 rounded text-white text-xs cursor-grab hover:opacity-80 transition-opacity appointment-item"
                     >
                       <p className="font-bold truncate">{appointment.title}</p>

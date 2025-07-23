@@ -129,3 +129,64 @@ export const formatDateHeader = (date: Date, view: 'day' | 'week' | 'month'): st
   }
   return '';
 };
+
+export interface OverlapAppointment extends SchedulerAppointment {
+  left: number;
+  width: number;
+  column: number;
+}
+
+export const getOverlappingAppointmentsLayout = (appointments: SchedulerAppointment[]): OverlapAppointment[] => {
+  const sortedAppointments = [...appointments].sort((a, b) => a.start.getTime() - b.start.getTime());
+  const columns: OverlapAppointment[][] = [];
+
+  sortedAppointments.forEach(appointment => {
+    let placed = false;
+    for (let i = 0; i < columns.length; i++) {
+      const column = columns[i];
+      // Check if the current appointment overlaps with any in this column
+      const overlaps = column.some(existing => (
+        appointment.start < existing.end && appointment.end > existing.start
+      ));
+
+      if (!overlaps) {
+        // Place the appointment in this column
+        columns[i].push({ ...appointment, column: i, left: 0, width: 0 });
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) {
+      // Create a new column for this appointment
+      columns.push([{ ...appointment, column: columns.length, left: 0, width: 0 }]);
+    }
+  });
+
+  const result: OverlapAppointment[] = [];
+  columns.forEach(column => {
+    column.forEach(appointment => {
+      const overlappingAppointmentsInTime = sortedAppointments.filter(other => (
+        appointment.start < other.end && appointment.end > other.start
+      ));
+
+      const maxOverlaps = overlappingAppointmentsInTime.reduce((max, current) => {
+        const currentOverlaps = sortedAppointments.filter(o => (
+          current.start < o.end && current.end > o.start
+        )).length;
+        return Math.max(max, currentOverlaps);
+      }, 1);
+
+      const width = 100 / maxOverlaps;
+      const left = appointment.column * width;
+
+      result.push({
+        ...appointment,
+        left,
+        width,
+      });
+    });
+  });
+
+  return result;
+};
