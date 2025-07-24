@@ -39,6 +39,7 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
   const [formData, setFormData] = useState(appointment);
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     setOriginalData(appointment);
@@ -65,7 +66,19 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
       setHasChanges(changes);
     };
 
+    const validateTimes = () => {
+      const startTime = new Date(formData.startTime);
+      const endTime = new Date(formData.endTime);
+      
+      if (endTime <= startTime) {
+        setValidationError('End time must be after start time');
+      } else {
+        setValidationError('');
+      }
+    };
+
     checkForChanges();
+    validateTimes();
   }, [formData, originalData]);
 
   if (!appointment) {
@@ -93,6 +106,42 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
         setFormData(prev => ({
             ...prev,
             notes: value,
+        }));
+    } else if (name === 'appointmentDate') {
+        // Update both start and end time with new date, keeping existing times
+        const currentStartTime = new Date(formData.startTime);
+        const currentEndTime = new Date(formData.endTime);
+        
+        // Parse the date input value (YYYY-MM-DD) and create new dates in local timezone
+        const [year, month, day] = value.split('-').map(Number);
+        
+        const newStartTime = new Date(year, month - 1, day, currentStartTime.getHours(), currentStartTime.getMinutes());
+        const newEndTime = new Date(year, month - 1, day, currentEndTime.getHours(), currentEndTime.getMinutes());
+        
+        setFormData(prev => ({
+            ...prev,
+            startTime: newStartTime,
+            endTime: newEndTime,
+        }));
+    } else if (name === 'startTimeOnly') {
+        // Update start time, keeping existing date
+        const currentDate = new Date(formData.startTime);
+        const [hours, minutes] = value.split(':').map(Number);
+        const newStartTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hours, minutes);
+        
+        setFormData(prev => ({
+            ...prev,
+            startTime: newStartTime,
+        }));
+    } else if (name === 'endTimeOnly') {
+        // Update end time, keeping existing date
+        const currentDate = new Date(formData.endTime);
+        const [hours, minutes] = value.split(':').map(Number);
+        const newEndTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hours, minutes);
+        
+        setFormData(prev => ({
+            ...prev,
+            endTime: newEndTime,
         }));
     } else {
         setFormData(prev => ({
@@ -129,9 +178,15 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
   const handleCancel = () => {
     setFormData(originalData);
     setHasChanges(false);
+    setValidationError('');
   };
 
   const handleSave = async () => {
+    // Don't save if there are validation errors
+    if (validationError) {
+      return;
+    }
+
     setIsLoading(true);
     const dataToUpdate = {
         startTime: new Date(formData.startTime),
@@ -145,6 +200,7 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
     if (result.success) {
         setOriginalData(formData);
         setHasChanges(false);
+        setValidationError('');
     } else {
         // Handle error, maybe show a notification
         console.error(result.error);
@@ -161,23 +217,25 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
         {hasChanges && (
           <div className="flex items-center space-x-2">
             <span className="text-sm text-amber-600 mr-2">Unsaved changes</span>
-            <button 
-              onClick={handleCancel} 
-              className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
-              disabled={isLoading}
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleSave} 
-              className="text-sm text-white bg-blue-600 hover:bg-blue-700 rounded px-3 py-1 disabled:opacity-50" 
-              disabled={isLoading}
-            >
-              {isLoading ? 'Saving...' : 'Save'}
-            </button>
+          
           </div>
         )}
       </div>
+      
+      {validationError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-800">{validationError}</p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
@@ -202,11 +260,33 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
         </div>
 
         <div>
+          <h3 className="font-semibold text-lg mb-2 text-gray-700">Date</h3>
+          <input 
+            type="date" 
+            name="appointmentDate" 
+            value={(() => {
+              const date = new Date(startTime);
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            })()} 
+            onChange={handleInputChange} 
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+          />
+        </div>
+
+        <div>
           <h3 className="font-semibold text-lg mb-2 text-gray-700">Start Time</h3>
           <input 
-            type="datetime-local" 
-            name="startTime" 
-            value={new Date(startTime).toISOString().substring(0, 16)} 
+            type="time" 
+            name="startTimeOnly" 
+            value={(() => {
+              const date = new Date(startTime);
+              const hours = String(date.getHours()).padStart(2, '0');
+              const minutes = String(date.getMinutes()).padStart(2, '0');
+              return `${hours}:${minutes}`;
+            })()} 
             onChange={handleInputChange} 
             className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
           />
@@ -215,9 +295,14 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
         <div>
           <h3 className="font-semibold text-lg mb-2 text-gray-700">End Time</h3>
           <input 
-            type="datetime-local" 
-            name="endTime" 
-            value={new Date(endTime).toISOString().substring(0, 16)} 
+            type="time" 
+            name="endTimeOnly" 
+            value={(() => {
+              const date = new Date(endTime);
+              const hours = String(date.getHours()).padStart(2, '0');
+              const minutes = String(date.getMinutes()).padStart(2, '0');
+              return `${hours}:${minutes}`;
+            })()} 
             onChange={handleInputChange} 
             className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
           />
@@ -266,7 +351,30 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
             </div>
         </div>
       )}
-
+      {hasChanges && (
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-amber-600 mr-2">Unsaved changes</span>
+          <button 
+            onClick={handleCancel} 
+            className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleSave} 
+            className={`text-sm text-white rounded px-3 py-1 ${
+              validationError 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700'
+            } disabled:opacity-50`}
+            disabled={isLoading || !!validationError}
+            title={validationError || ''}
+          >
+            {isLoading ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      )}
       <div className="mt-6 text-xs text-gray-400">
         <p>Created: {new Date(formData.createdAt).toLocaleString()}</p>
         <p>Last Updated: {new Date(formData.updatedAt).toLocaleString()}</p>
