@@ -3,7 +3,8 @@
 
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { User, SchedulerAppointment } from '../types';
-import { generateTimeSlots } from '../utils';
+import { generateTimeSlots, getAppointmentColor, getOverlappingAppointmentsLayout } from '../utils';
+import TimeIndicator from '../ui/TimeIndicator';
 
 interface DayViewProps {
   currentDate: Date;
@@ -15,6 +16,9 @@ interface DayViewProps {
   onDragStart: (event: React.DragEvent, schedulerAppointment: SchedulerAppointment) => void;
   onDragEnd: () => void;
   onDrop: (targetDate: Date, targetTime: string, targetUserId: string | number) => void;
+  columnWidths: number[];
+  setColumnWidths: (widths: number[]) => void;
+  onEmptySlotClick: (date: Date, time: string, userId: string | number) => void;
 }
 
 const HOUR_ROW_HEIGHT = 60; // in pixels
@@ -27,7 +31,7 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
            date1.getDate() === date2.getDate();
 };
 
-export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop }) => {
+export const DayView: React.FC<DayViewProps> = ({ currentDate, users, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop, columnWidths, setColumnWidths, onEmptySlotClick }) => {
     const { startHour, endHour, hourTimeSlots } = useMemo(() => {
         let minHour = 9;
         let maxHour = 20;
@@ -48,7 +52,6 @@ const calculateTopPosition = (date: Date) => {
     return (startMinutes / 60) * HOUR_ROW_HEIGHT;
 };
     
-    const [columnWidths, setColumnWidths] = useState<number[]>([]);
     const [dragOverInfo, setDragOverInfo] = useState<{ userId: string | number; time: string } | null>(null);
     const [dragStartOffset, setDragStartOffset] = useState(0);
 
@@ -56,13 +59,13 @@ const calculateTopPosition = (date: Date) => {
     const userColumnRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     useEffect(() => {
-        if (containerRef.current && users.length > 0) {
+        if (containerRef.current && users.length > 0 && columnWidths.length !== users.length) {
             const containerWidth = containerRef.current.offsetWidth;
             const widthPerUser = Math.max(MIN_COLUMN_WIDTH, containerWidth / users.length);
             setColumnWidths(Array(users.length).fill(widthPerUser));
         }
         userColumnRefs.current = userColumnRefs.current.slice(0, users.length);
-    }, [users]);
+    }, [users, columnWidths.length, setColumnWidths]);
 
     const handleLocalDragStart = (e: React.DragEvent<HTMLDivElement>, appointment: SchedulerAppointment) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -148,7 +151,7 @@ const calculateTopPosition = (date: Date) => {
 
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    }, []);
+    }, [setColumnWidths]);
 
     if (users.length === 0) {
         return <div className="p-8 text-center text-gray-500">Select a user to see their schedule.</div>;
@@ -179,7 +182,25 @@ const calculateTopPosition = (date: Date) => {
                             {user.name}
                         </div>
                         
-                        <div className={`relative ${index < users.length - 1 ? 'border-r border-gray-200' : ''}`}>
+                        <div
+                            className={`relative cursor-pointer ${index < users.length - 1 ? 'border-r border-gray-200' : ''}`}
+                            onClick={(e) => {
+                                // Only handle click if it's not on an appointment
+                                if (e.target === e.currentTarget || e.target.closest('.appointment-item') === null) {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const offsetY = e.clientY - rect.top;
+                                    const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60) + (startHour * 60);
+                                    const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;
+                                    const hour = Math.floor(interval / 60).toString().padStart(2, '0');
+                                    const minute = (interval % 60).toString().padStart(2, '0');
+                                    const clickedTime = `${hour}:${minute}`;
+                                    onEmptySlotClick(currentDate, clickedTime, user.id);
+                                }
+                            }}
+                        >
+                            {isSameDay(currentDate, new Date()) && (
+                                <TimeIndicator startHour={startHour} hourRowHeight={HOUR_ROW_HEIGHT} />
+                            )}
                             {hourTimeSlots.map(time => (
                                 <div key={time} style={{ height: `${HOUR_ROW_HEIGHT}px` }} className="border-t border-gray-100"></div>
                             ))}
@@ -198,14 +219,10 @@ const calculateTopPosition = (date: Date) => {
                             )}
 
                             <div className="absolute inset-0 top-0 z-20 pointer-events-none">
-                                {appointments
-                                    .filter(appointment => appointment.userId === user.id && isSameDay(appointment.start, currentDate))
+                                {getOverlappingAppointmentsLayout(appointments.filter(appointment => appointment.userId === user.id && isSameDay(appointment.start, currentDate)))
                                     .map(appointment => {
-                                        const startMinutes = appointment.start.getHours() * 60 + appointment.start.getMinutes();
-                                        const endMinutes = appointment.end.getHours() * 60 + appointment.end.getMinutes();
-                                        const durationMinutes = endMinutes - startMinutes;
                                         const top = calculateTopPosition(appointment.start);
-                                        const height = (durationMinutes / 60) * HOUR_ROW_HEIGHT;
+                                        const height = ((appointment.end.getTime() - appointment.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT;
 
                                         return (
                                             <div 
@@ -214,13 +231,13 @@ const calculateTopPosition = (date: Date) => {
                                                 onDragStart={(e) => handleLocalDragStart(e, appointment)}
                                                 onDragEnd={onDragEnd}
                                                 onClick={() => onAppointmentClick(appointment)}
-                                                className="absolute p-2 rounded text-white text-xs cursor-grab shadow-md pointer-events-auto"
+                                                className="absolute p-2 rounded text-white text-xs cursor-grab shadow-md pointer-events-auto appointment-item"
                                                 style={{
                                                     top: `${top}px`,
                                                     height: `${height}px`,
-                                                    backgroundColor: appointment.color,
-                                                    left: '4px',
-                                                    right: '4px',
+                                                    backgroundColor: getAppointmentColor(appointment.status),
+                                                    left: `${appointment.left}%`,
+                                                    width: `${appointment.width}%`,
                                                     opacity: isDragging ? 0.5 : 1,
                                                 }}
                                             >

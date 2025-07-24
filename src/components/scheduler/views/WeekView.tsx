@@ -3,7 +3,8 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { SchedulerAppointment } from '../types';
-import { getWeekDays, generateTimeSlots } from '../utils';
+import { getWeekDays, generateTimeSlots, getAppointmentColor, getOverlappingAppointmentsLayout } from '../utils';
+import TimeIndicator from '../ui/TimeIndicator';
 
 interface WeekViewProps {
   currentDate: Date;
@@ -14,6 +15,7 @@ interface WeekViewProps {
   onDragStart: (event: React.DragEvent, schedulerAppointment: SchedulerAppointment) => void;
   onDragEnd: () => void;
   onDrop: (targetDate: Date, targetTime: string) => void;
+  onEmptySlotClick: (date: Date, time: string) => void;
 }
 
 const HOUR_ROW_HEIGHT = 60; // in pixels
@@ -25,7 +27,7 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
            date1.getDate() === date2.getDate();
 };
 
-export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop }) => {
+export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, isDragging, draggedAppointment, onAppointmentClick, onDragStart, onDragEnd, onDrop, onEmptySlotClick }) => {
   const weekDays = getWeekDays(currentDate);
   const { startHour, endHour, hourTimeSlots } = React.useMemo(() => {
     let minHour = 9;
@@ -65,7 +67,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
     const rect = dayColumn.getBoundingClientRect();
     const offsetY = e.clientY - rect.top - dragStartOffset -50;
     
-    const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60);
+    const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60) + (startHour * 60);
     const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;
     const hour = Math.floor(interval / 60).toString().padStart(2, '0');
     const minute = (interval % 60).toString().padStart(2, '0');
@@ -106,13 +108,13 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
       height: `${height}px`,
       left: '4px',
       right: '4px',
-      backgroundColor: appointment.color,
+      backgroundColor: getAppointmentColor(appointment.status),
       zIndex: 20,
       opacity: isDragging ? 0.5 : 1
     };
   };
 
-  return (
+return (
     <div className="flex h-full bg-white">
       <div className="w-16 flex-shrink-0 border-r border-gray-200">
         <div className="h-14 border-b"></div>
@@ -131,6 +133,19 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
             onDragOver={(e) => handleDragOver(e, day, index)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, day, index)}
+            onClick={(e) => {
+                // Only handle click if it's not on an appointment
+                if (e.target === e.currentTarget || e.target.closest('.appointment-item') === null) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const offsetY = e.clientY - rect.top;
+                    const totalMinutes = Math.max(0, (offsetY / HOUR_ROW_HEIGHT) * 60) + (startHour * 60);
+                    const interval = Math.floor(totalMinutes / DROP_INTERVAL) * DROP_INTERVAL;
+                    const hour = Math.floor(interval / 60).toString().padStart(2, '0');
+                    const minute = (interval % 60).toString().padStart(2, '0');
+                    const clickedTime = `${hour}:${minute}`;
+                    onEmptySlotClick(day, clickedTime);
+                }
+            }}
           >
             <div className="sticky top-0 bg-white z-30 p-2 border-b text-center h-14 flex-shrink-0">
               <div className="text-xs text-gray-500">{day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</div>
@@ -139,7 +154,10 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
               </div>
             </div>
 
-            <div className={`relative ${index < weekDays.length - 1 ? 'border-r border-gray-200' : ''}`}>
+            <div className={`relative cursor-pointer ${index < weekDays.length - 1 ? 'border-r border-gray-200' : ''}`}>
+                {isSameDay(day, new Date()) && (
+                    <TimeIndicator startHour={startHour} hourRowHeight={HOUR_ROW_HEIGHT} />
+                )}
                 {hourTimeSlots.map(time => (
                     <div key={time} style={{ height: `${HOUR_ROW_HEIGHT}px` }} className="border-t border-gray-100"></div>
                 ))}
@@ -148,7 +166,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
                     <div 
                         className="absolute bg-blue-100 opacity-50 pointer-events-none"
                         style={{
-                            top: `${(parseInt(dragOverInfo.time.split(':')[0]) * 60 + parseInt(dragOverInfo.time.split(':')[1])) / 60 * HOUR_ROW_HEIGHT}px`,
+                            top: `${((parseInt(dragOverInfo.time.split(':')[0]) - startHour) * 60 + parseInt(dragOverInfo.time.split(':')[1])) / 60 * HOUR_ROW_HEIGHT}px`,
                             height: `${((draggedAppointment.end.getTime() - draggedAppointment.start.getTime()) / (1000 * 60) / 60) * HOUR_ROW_HEIGHT}px`,
                             left: '0',
                             right: '0',
@@ -157,8 +175,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
                     />
                 )}
                 
-                {appointments
-                  .filter(appointment => isSameDay(appointment.start, day))
+                {getOverlappingAppointmentsLayout(appointments.filter(appointment => isSameDay(appointment.start, day)))
                   .map(appointment => (
                     <div
                       key={appointment.id}
@@ -166,8 +183,12 @@ export const WeekView: React.FC<WeekViewProps> = ({ currentDate, appointments, i
                       onDragStart={(e) => handleLocalDragStart(e, appointment)}
                       onDragEnd={onDragEnd}
                       onClick={() => onAppointmentClick(appointment)}
-                      style={getAppointmentStyle(appointment)}
-                      className="p-1 rounded text-white text-xs cursor-grab hover:opacity-80 transition-opacity"
+                      style={{
+                        ...getAppointmentStyle(appointment),
+                        left: `${appointment.left}%`,
+                        width: `${appointment.width}%`,
+                      }}
+                      className="p-1 rounded text-white text-xs cursor-grab hover:opacity-80 transition-opacity appointment-item"
                     >
                       <p className="font-bold truncate">{appointment.title}</p>
                       <p className="opacity-80 truncate">

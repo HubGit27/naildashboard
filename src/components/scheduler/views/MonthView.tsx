@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { SchedulerAppointment } from '../types';
-import { getMonthDays } from '../utils';
+import { getMonthDays, getAppointmentColor } from '../utils';
 
 interface MonthViewProps {
   currentDate: Date;
@@ -47,7 +47,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, appointments,
                   <div
                     key={appointment.id}
                     className="text-xs text-white rounded px-1 py-0.5 mb-1 truncate"
-                    style={{ backgroundColor: appointment.color }}
+                    style={{ backgroundColor: getAppointmentColor(appointment.status) }}
                   >
                     {appointment.title}
                   </div>

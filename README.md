@@ -1,3 +1,11 @@
+In the scheduler, when an empty space is clicked, open a modal to create an appointment
+
+In naildashboard\src\components\scheduler\views\DayView.tsx, create a horizontal line that goes across the scheduler to show what the current time is
+
+In the Scheduler, how can I make the color of the appointments based off the status of the appointment? If its scheduled- blue, confirmed- teal, in_progress- orange, completed - green, cancelled- gray, no_show- red, waiting- yellow    
+
+In naildashboard\src\app\(dashboard)\list\employees\page.tsx, I have teachers displayed as a template. Change it to display employees from the prisma database
+
 # Brandon Notes
 how to run application - 
 Start docker container (if not setup, check below) in the env file - 

@@ -13,15 +13,14 @@ export interface SchedulerAppointment {
   title: string;
   start: Date;
   end: Date;
-  color: string;
   userId: string | number;
+  status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'waiting';
 }
 
 export interface AppointmentForm {
   title: string;
   start: string;
   end: string;
-  color: string;
   userId: string | number;
 }
 

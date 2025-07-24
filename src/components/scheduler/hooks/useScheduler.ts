@@ -23,6 +23,7 @@ const STORAGE_KEYS = {
     DATE: 'scheduler_date',
     VIEW: 'scheduler_view',
     SELECTED_USERS: 'scheduler_selected_users',
+    COLUMN_WIDTHS: 'scheduler_column_widths',
 } as const;
 
 // Safe localStorage operations
@@ -108,9 +109,45 @@ export const useScheduler = ({
 
     const [currentDate, setCurrentDate] = useState<Date>(getInitialDate);
     const [view, setView] = useState<ViewType>(getInitialView);
-    const [selectedUsers, setSelectedUsers] = useState<Array<string | number>>([]);
     const [urlAppointmentId, setUrlAppointmentId] = useState<string | null>(null);
+    const [columnWidths, setColumnWidths] = useState<number[]>(() => {
+        const storedWidths = safeLocalStorage.get(STORAGE_KEYS.COLUMN_WIDTHS);
+        if (storedWidths) {
+            try {
+                const parsed = JSON.parse(storedWidths);
+                if (Array.isArray(parsed) && parsed.every(item => typeof item === 'number')) {
+                    return parsed;
+                }
+            } catch {
+                // Fallback to empty array if parsing fails
+            }
+        }
+        return [];
+    });
 
+    useEffect(() => {
+        if (columnWidths.length > 0) {
+            safeLocalStorage.set(STORAGE_KEYS.COLUMN_WIDTHS, JSON.stringify(columnWidths));
+        }
+    }, [columnWidths]);
+
+    const [dayViewSelectionCache, setDayViewSelectionCache] = useState<Array<string | number>>(() => {
+        const stored = safeLocalStorage.get(STORAGE_KEYS.SELECTED_USERS);
+        return stored ? stored.split(',') : [];
+    });
+    const [singleViewSelectionCache, setSingleViewSelectionCache] = useState<string | number | null>(() => {
+        const stored = safeLocalStorage.get(STORAGE_KEYS.SELECTED_USERS);
+        const firstUser = stored?.split(',')[0];
+        return firstUser || null;
+    });
+
+    const selectedUsers = useMemo(() => {
+        if (view === 'day') {
+            return dayViewSelectionCache.length > 0 ? dayViewSelectionCache : (users.length > 0 ? [users[0].id] : []);
+        } else {
+            return singleViewSelectionCache ? [singleViewSelectionCache] : (users.length > 0 ? [users[0].id] : []);
+        }
+    }, [view, dayViewSelectionCache, singleViewSelectionCache, users]);
 
     // Fetch data on mount
     useEffect(() => {
@@ -130,11 +167,18 @@ export const useScheduler = ({
                     start: new Date(apt.startTime),
                     end: new Date(apt.endTime),
                     userId: apt.employeeId,
-                    color: generateColor(apt.employeeId),
+                    status: apt.status,
                 }));
 
                 setAppointments(formattedAppointments);
-                setSelectedUsers(getInitialSelection(users));
+
+                const initialSelection = getInitialSelection(users);
+                if (dayViewSelectionCache.length === 0) {
+                    setDayViewSelectionCache(initialSelection);
+                }
+                if (!singleViewSelectionCache) {
+                    setSingleViewSelectionCache(initialSelection.length > 0 ? initialSelection[0] : (users.length > 0 ? users[0].id : null));
+                }
 
             } catch (e: any) {
                 setError(e.message || 'An unknown error occurred');
@@ -146,20 +190,7 @@ export const useScheduler = ({
         if (users.length > 0) {
             fetchAppointments();
         }
-    }, [users, getInitialSelection]);
-
-
-    const [dayViewSelectionCache, setDayViewSelectionCache] = useState<Array<string | number>>([]);
-    const [singleViewSelectionCache, setSingleViewSelectionCache] = useState<string | number | null>(null);
-
-    useEffect(() => {
-        if (users.length > 0 && selectedUsers.length === 0) {
-            const initialSelection = getInitialSelection(users);
-            setSelectedUsers(initialSelection);
-            setDayViewSelectionCache(initialSelection);
-            setSingleViewSelectionCache(initialSelection.length > 0 ? initialSelection[0] : (users.length > 0 ? users[0].id : null));
-        }
-    }, [users, selectedUsers, getInitialSelection]);
+    }, [users, getInitialSelection, dayViewSelectionCache, singleViewSelectionCache]);
 
 
     const [selectedAppointment, setSelectedAppointment] = useState<SchedulerAppointment | null>(null);
@@ -173,26 +204,16 @@ export const useScheduler = ({
 
     const handleUserToggle = useCallback((userId: string | number) => {
         if (view === 'day') {
-            const newSelection = selectedUsers.includes(userId)
-                ? selectedUsers.length > 1 ? selectedUsers.filter(id => id !== userId) : selectedUsers
-                : [...selectedUsers, userId];
-            setSelectedUsers(newSelection);
+            const newSelection = dayViewSelectionCache.includes(userId)
+                ? dayViewSelectionCache.length > 1 ? dayViewSelectionCache.filter(id => id !== userId) : dayViewSelectionCache
+                : [...dayViewSelectionCache, userId];
             setDayViewSelectionCache(newSelection);
         } else {
-            setSelectedUsers([userId]);
             setSingleViewSelectionCache(userId);
         }
-    }, [view, selectedUsers]);
+    }, [view, dayViewSelectionCache]);
 
-    useEffect(() => {
-        if (view === 'week' || view === 'month') {
-            if (singleViewSelectionCache) {
-                setSelectedUsers([singleViewSelectionCache]);
-            }
-        } else if (view === 'day') {
-            setSelectedUsers(dayViewSelectionCache);
-        }
-    }, [view, dayViewSelectionCache, singleViewSelectionCache]);
+
 
     const handleDragEnd = useCallback(() => {
         setDraggedAppointment(null);
@@ -324,6 +345,23 @@ export const useScheduler = ({
         setView('day');
     }, []);
 
+    const handleEmptySlotClick = useCallback((date: Date, time: string, userId?: string | number) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        const newStart = new Date(date);
+        newStart.setHours(hours, minutes, 0, 0);
+        const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000); // Default 1 hour duration
+
+        setSelectedAppointment({
+            id: crypto.randomUUID(),
+            title: '',
+            start: newStart,
+            end: newEnd,
+            userId: userId || (selectedUsers.length > 0 ? selectedUsers[0] : users[0]?.id),
+            status: 'scheduled',
+        });
+        setShowAppointmentModal(true);
+    }, [selectedUsers, users]);
+
     const handleSaveAppointment = useCallback((appointmentData: AppointmentForm) => {
         const user = users.find(u => u.id === appointmentData.userId);
         const newAppointment: SchedulerAppointment = {
@@ -331,7 +369,7 @@ export const useScheduler = ({
             title: appointmentData.title,
             start: new Date(appointmentData.start),
             end: new Date(appointmentData.end),
-            color: user ? user.color : '#3b82f6',
+            status: 'scheduled', // Default status
             userId: appointmentData.userId
         };
         if (selectedAppointment) {
@@ -385,7 +423,10 @@ export const useScheduler = ({
         showConfirmationModal,
         confirmAppointmentChange,
         cancelAppointmentChange,
+        columnWidths, // Expose columnWidths
+        setColumnWidths, // Expose setColumnWidths
         isLoading,
         error,
+        handleEmptySlotClick,
     };
 };
