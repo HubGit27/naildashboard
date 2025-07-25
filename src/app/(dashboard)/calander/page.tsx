@@ -79,16 +79,16 @@ const CalendarPage = async ({ searchParams }: { searchParams: { [key: string]: s
           searchParams={searchParams}
         />
       </div>
-      {appointment && <AppointmentDetails appointment={appointment} allServices={serializedServices} allEmployees={initialUsers} />}
-      {/* <CollapsiblePanel>
-        
-        <ResizeableColumnContainer title="Calendar" defaultHeight={400}>
-          <EventCalendarContainer searchParams={searchParams} />
-        </ResizeableColumnContainer>
-        <ResizeableColumnContainer title="Announcements" defaultHeight={300}>
-          <Announcements />
-        </ResizeableColumnContainer>
-      </CollapsiblePanel> */}
+      {appointment ? (
+        <AppointmentDetails appointment={appointment} allServices={serializedServices} allEmployees={initialUsers} />
+      ) : (
+        <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-200 min-w-[300px] sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-lg font-semibold text-gray-700">No appointment selected</p>
+            <p className="text-sm text-gray-500">Click on an appointment in the scheduler to see its details.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

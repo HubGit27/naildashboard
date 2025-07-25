@@ -50,6 +50,12 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
 
   // Check if there are changes whenever formData updates
   useEffect(() => {
+    if (!formData || !originalData) {
+      setHasChanges(false);
+      setValidationError('');
+      return;
+    }
+
     const checkForChanges = () => {
       const changes = 
         formData.employeeId !== originalData.employeeId ||
@@ -82,10 +88,13 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
     validateTimes();
   }, [formData, originalData]);
 
-  if (!appointment) {
+  if (!formData) {
     return (
-      <div className="p-4 text-center text-gray-500">
-        Select an appointment to see details.
+      <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-200 min-w-[300px] sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg font-semibold text-gray-700">No appointment selected</p>
+          <p className="text-sm text-gray-500">Click on an appointment in the scheduler to see its details.</p>
+        </div>
       </div>
     );
   }
@@ -210,7 +219,7 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
   };
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-200">
+    <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-200 min-w-[400px] sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto">
       <div className="flex justify-between items-center mb-4 border-b pb-2">
         <h2 className="text-2xl font-bold text-gray-800">
           Appointment Details
