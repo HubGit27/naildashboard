@@ -79,16 +79,16 @@ const CalendarPage = async ({ searchParams }: { searchParams: { [key: string]: s
           searchParams={searchParams}
         />
       </div>
- 
-      <CollapsiblePanel>
-        {appointment && <AppointmentDetails appointment={appointment} allServices={serializedServices} allEmployees={initialUsers} />}
-        {/* <ResizeableColumnContainer title="Calendar" defaultHeight={400}>
+      {appointment && <AppointmentDetails appointment={appointment} allServices={serializedServices} allEmployees={initialUsers} />}
+      {/* <CollapsiblePanel>
+        
+        <ResizeableColumnContainer title="Calendar" defaultHeight={400}>
           <EventCalendarContainer searchParams={searchParams} />
         </ResizeableColumnContainer>
         <ResizeableColumnContainer title="Announcements" defaultHeight={300}>
           <Announcements />
-        </ResizeableColumnContainer> */}
-      </CollapsiblePanel>
+        </ResizeableColumnContainer>
+      </CollapsiblePanel> */}
     </div>
   );
 };

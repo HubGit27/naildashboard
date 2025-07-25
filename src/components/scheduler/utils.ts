@@ -3,24 +3,23 @@
 import { MonthDay, SchedulerAppointment } from './types';
 
 export const getAppointmentColor = (status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'waiting'): string => {
-  console.log(`Appointment status: ${status}`); // Debugging line
   switch (status.toLowerCase()) {
     case 'scheduled':
-      return 'blue';
+      return '#60a5fa'; // Soft blue - gentler than bright blue
     case 'confirmed':
-      return 'teal';
+      return '#2dd4bf'; // Soft teal - muted teal shade
     case 'in_progress':
-      return 'orange';
+      return '#fb923c'; // Soft orange - warmer, less harsh
     case 'completed':
-      return 'green';
+      return '#4ade80'; // Soft green - pleasant success color
     case 'cancelled':
-      return 'gray';
+      return '#9ca3af'; // Soft gray - same gentle gray
     case 'no_show':
-      return 'red';
+      return '#f87171'; // Soft red - less aggressive red
     case 'waiting':
-      return 'yellow';
+      return '#fbbf24'; // Soft yellow - warm, gentle yellow
     default:
-      return 'gray';
+      return '#9ca3af'; // Soft gray fallback
   }
 };
 

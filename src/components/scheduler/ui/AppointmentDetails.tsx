@@ -40,6 +40,7 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [selectedService, setSelectedService] = useState('');
 
   useEffect(() => {
     setOriginalData(appointment);
@@ -324,6 +325,52 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
             <option value="CANCELLED">Cancelled</option>
             <option value="NO_SHOW">No Show</option>
           </select>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h3 className="font-semibold text-lg mb-2 text-gray-700">Services</h3>
+        <div className="space-y-2">
+          {appointmentServices.map(as => (
+            <div key={as.serviceId} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+              <div>
+                <span className="font-medium">{as.service.name}</span>
+                <span className="text-sm text-gray-500 ml-2">${as.price}</span>
+              </div>
+              <button
+                onClick={() => handleRemoveService(as.serviceId)}
+                className="text-red-500 hover:text-red-700"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center space-x-2">
+          <select
+            value={selectedService}
+            onChange={(e) => setSelectedService(e.target.value)}
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="" disabled>Select a service to add</option>
+            {allServices
+              .filter(s => !appointmentServices.some(as => as.serviceId === s.id))
+              .map(s => (
+                <option key={s.id} value={s.id}>{s.name} - ${s.price}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => {
+              if (selectedService) {
+                handleAddService(selectedService);
+                setSelectedService('');
+              }
+            }}
+            disabled={!selectedService}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-300"
+          >
+            Add
+          </button>
         </div>
       </div>
 

@@ -64,6 +64,8 @@ model Employee {
   employeeServices EmployeeService[] // Add this line
   birthday  DateTime?
   stores       Store[]
+  availabilityOverrides AvailabilityOverride[]
+  scheduleExceptions ScheduleException[] 
 }
 model Customer {
   id          String       @id
@@ -279,9 +281,50 @@ model Setting {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
 }
 
+model AvailabilityOverride {
+  id              String    @id @default(uuid())
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  startTime       DateTime
+  endTime         DateTime
+  type            OverrideType
+  reason          String?
+  isActive        Boolean   @default(true)
+  
+  // Add capacity control
+  maxConcurrent   Int?      // Max appointments during this time (null = unlimited)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdBy       String?
+  
+  @@index([employeeId, startTime, endTime])
+}
+ 
+enum OverrideType {
+  BLOCK       // Block availability completely
+  OPEN        // Allow appointments with capacity limit
+  UNAVAILABLE // Temporarily unavailable
+} 
+ 
+
+model ScheduleException {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  date        DateTime @db.Date  // Specific date for this exception
+  startTime   DateTime?          // null if taking the day off
+  endTime     DateTime?          // null if taking the day off
+  isTimeOff   Boolean  @default(false)
+  reason      String?            // Optional: "Sick day", "Extra hours", etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([employeeId, date]) 
+}
+ 
 // Below is old School datadashboard
 model Admin {
   id       String @id
