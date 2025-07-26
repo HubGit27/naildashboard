@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Prisma } from '@prisma/client';
 import { updateAppointmentWithServices } from '@/lib/actions';
+import { Clock, Calculator } from 'lucide-react';
 
 type AppointmentWithDetails = Omit<Prisma.AppointmentGetPayload<{
   include: {
@@ -18,7 +19,7 @@ type AppointmentWithDetails = Omit<Prisma.AppointmentGetPayload<{
 }>, 'appointmentServices' | 'payment'> & {
   appointmentServices: (Omit<Prisma.AppointmentServiceGetPayload<{ include: { service: true } }>, 'price' | 'service'> & { 
     price: string; 
-    service: Omit<Prisma.ServiceGetPayload<{}>, 'price'> & { price: string };
+    service: Omit<Prisma.ServiceGetPayload<{}>, 'price'> & { price: string; duration?: number };
   })[];
   payment: (Omit<Prisma.PaymentGetPayload<{}>, 'amount' | 'tip' | 'tax' | 'total'> & { 
     amount: string; 
@@ -30,7 +31,7 @@ type AppointmentWithDetails = Omit<Prisma.AppointmentGetPayload<{
 
 interface AppointmentDetailsProps {
   appointment: AppointmentWithDetails;
-  allServices: (Omit<Prisma.ServiceGetPayload<{}>, 'price'> & { price: string })[];
+  allServices: (Omit<Prisma.ServiceGetPayload<{}>, 'price'> & { price: string; duration?: number })[];
   allEmployees: { id: string; name: string; }[];
 }
 
@@ -87,6 +88,32 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
     checkForChanges();
     validateTimes();
   }, [formData, originalData]);
+
+  // Calculate total duration of all services
+  const calculateTotalServiceDuration = (): number => {
+    return formData.appointmentServices.reduce((total, appointmentService) => {
+      const duration = appointmentService.service.duration || 0;
+      return total + duration;
+    }, 0);
+  };
+
+  // Auto-calculate end time based on start time and service durations
+  const handleAutoCalculateEndTime = () => {
+    const totalDurationMinutes = calculateTotalServiceDuration();
+    
+    if (totalDurationMinutes === 0) {
+      alert('No services with duration found. Please add services first.');
+      return;
+    }
+
+    const startTime = new Date(formData.startTime);
+    const endTime = new Date(startTime.getTime() + (totalDurationMinutes * 60 * 1000));
+    
+    setFormData(prev => ({
+      ...prev,
+      endTime: endTime,
+    }));
+  };
 
   if (!formData) {
     return (
@@ -218,6 +245,8 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
     setIsLoading(false);
   };
 
+  const totalDuration = calculateTotalServiceDuration();
+
   return (
     <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-200 min-w-[400px] sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto">
       <div className="flex justify-between items-center mb-4 border-b pb-2">
@@ -302,20 +331,41 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
           />
         </div>
 
-        <div>
-          <h3 className="font-semibold text-lg mb-2 text-gray-700">End Time</h3>
-          <input 
-            type="time" 
-            name="endTimeOnly" 
-            value={(() => {
-              const date = new Date(endTime);
-              const hours = String(date.getHours()).padStart(2, '0');
-              const minutes = String(date.getMinutes()).padStart(2, '0');
-              return `${hours}:${minutes}`;
-            })()} 
-            onChange={handleInputChange} 
-            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-          />
+        <div className="md:col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-lg text-gray-700">End Time</h3>
+            {totalDuration > 0 && (
+              <button
+                type="button"
+                onClick={handleAutoCalculateEndTime}
+                className="flex items-center space-x-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                title={`Auto-calculate based on service duration (${totalDuration} min)`}
+              >
+                <Calculator className="w-3 h-3" />
+                <span>Auto-calculate ({totalDuration} min)</span>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            <input 
+              type="time" 
+              name="endTimeOnly" 
+              value={(() => {
+                const date = new Date(endTime);
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${hours}:${minutes}`;
+              })()} 
+              onChange={handleInputChange} 
+              className="flex-1 p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+            />
+            {totalDuration > 0 && (
+              <div className="flex items-center text-xs text-gray-500">
+                <Clock className="w-3 h-3 mr-1" />
+                <span>{totalDuration} min total</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="md:col-span-2">
@@ -342,13 +392,21 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
         <div className="space-y-2">
           {appointmentServices.map(as => (
             <div key={as.serviceId} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-              <div>
+              <div className="flex-1">
                 <span className="font-medium">{as.service.name}</span>
-                <span className="text-sm text-gray-500 ml-2">${as.price}</span>
+                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <span>${as.price}</span>
+                  {as.service.duration && (
+                    <span className="flex items-center">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {as.service.duration} min
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => handleRemoveService(as.serviceId)}
-                className="text-red-500 hover:text-red-700"
+                className="text-red-500 hover:text-red-700 ml-2"
               >
                 Remove
               </button>
@@ -365,7 +423,9 @@ const AppointmentDetails: React.FC<AppointmentDetailsProps> = ({ appointment, al
             {allServices
               .filter(s => !appointmentServices.some(as => as.serviceId === s.id))
               .map(s => (
-                <option key={s.id} value={s.id}>{s.name} - ${s.price}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name} - ${s.price} {s.duration ? `(${s.duration} min)` : ''}
+                </option>
             ))}
           </select>
           <button
