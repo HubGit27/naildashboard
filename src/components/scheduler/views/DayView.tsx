@@ -134,6 +134,7 @@ export const DayView: React.FC<DayViewProps> = ({
         e.preventDefault();
         const startX = e.clientX;
         const containerWidth = containerRef.current?.getBoundingClientRect().width || 100;
+        const startWidths = [...columnWidths]; // Capture initial widths
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
             if (!containerRef.current) return;
@@ -143,17 +144,28 @@ export const DayView: React.FC<DayViewProps> = ({
             const deltaPercentage = (deltaX / containerWidth) * 100;
 
             setColumnWidths(prevWidths => {
-                const newWidths = [...prevWidths];
+                const newWidths = [...startWidths]; // Always start from initial widths
                 const leftIndex = index;
                 const rightIndex = index + 1;
                 
-                const newLeftWidth = Math.max(MIN_COLUMN_WIDTH_PERCENT, newWidths[leftIndex] + deltaPercentage);
-                const newRightWidth = Math.max(MIN_COLUMN_WIDTH_PERCENT, newWidths[rightIndex] - deltaPercentage);
+                // Calculate new widths
+                const proposedLeftWidth = startWidths[leftIndex] + deltaPercentage;
+                const proposedRightWidth = startWidths[rightIndex] - deltaPercentage;
                 
-                // Only update if both columns meet minimum width requirements
-                if (newLeftWidth >= MIN_COLUMN_WIDTH_PERCENT && newRightWidth >= MIN_COLUMN_WIDTH_PERCENT) {
-                    newWidths[leftIndex] = newLeftWidth;
-                    newWidths[rightIndex] = newRightWidth;
+                // Check if both columns meet minimum requirements
+                if (proposedLeftWidth >= MIN_COLUMN_WIDTH_PERCENT && 
+                    proposedRightWidth >= MIN_COLUMN_WIDTH_PERCENT) {
+                    newWidths[leftIndex] = proposedLeftWidth;
+                    newWidths[rightIndex] = proposedRightWidth;
+                }
+                
+                // Ensure total adds up to 100% (handle floating point precision)
+                const total = newWidths.reduce((sum, width) => sum + width, 0);
+                if (Math.abs(total - 100) > 0.01) {
+                    const ratio = 100 / total;
+                    for (let i = 0; i < newWidths.length; i++) {
+                        newWidths[i] *= ratio;
+                    }
                 }
                 
                 return newWidths;
@@ -167,7 +179,7 @@ export const DayView: React.FC<DayViewProps> = ({
 
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    }, [setColumnWidths]);
+    }, [setColumnWidths, columnWidths]);
 
     if (users.length === 0) {
         return <div className="p-8 text-center text-gray-500">Select a user to see their schedule.</div>;
