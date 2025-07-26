@@ -59,13 +59,12 @@ const calculateTopPosition = (date: Date) => {
     const userColumnRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     useEffect(() => {
-        if (containerRef.current && users.length > 0 && columnWidths.length !== users.length) {
+        if (containerRef.current && users.length > 0) {
             const containerWidth = containerRef.current.offsetWidth;
-            const widthPerUser = Math.max(MIN_COLUMN_WIDTH, containerWidth / users.length);
-            setColumnWidths(Array(users.length).fill(widthPerUser));
+            const newWidths = Array(users.length).fill(Math.max(MIN_COLUMN_WIDTH, containerWidth / users.length));
+            setColumnWidths(newWidths);
         }
-        userColumnRefs.current = userColumnRefs.current.slice(0, users.length);
-    }, [users, columnWidths.length, setColumnWidths]);
+    }, [users.length, setColumnWidths]);
 
     const handleLocalDragStart = (e: React.DragEvent<HTMLDivElement>, appointment: SchedulerAppointment) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -131,10 +130,16 @@ const calculateTopPosition = (date: Date) => {
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const currentX = moveEvent.clientX;
             const deltaX = currentX - startX;
-            const newLeftWidth = leftStartWidth + deltaX;
-            const newRightWidth = rightStartWidth - deltaX;
+            let newLeftWidth = leftStartWidth + deltaX;
+            let newRightWidth = rightStartWidth - deltaX;
 
-            if (newLeftWidth < MIN_COLUMN_WIDTH || newRightWidth < MIN_COLUMN_WIDTH) return;
+            if (newLeftWidth < MIN_COLUMN_WIDTH) {
+                newLeftWidth = MIN_COLUMN_WIDTH;
+                newRightWidth = leftStartWidth + rightStartWidth - newLeftWidth;
+            } else if (newRightWidth < MIN_COLUMN_WIDTH) {
+                newRightWidth = MIN_COLUMN_WIDTH;
+                newLeftWidth = leftStartWidth + rightStartWidth - newRightWidth;
+            }
 
             setColumnWidths(prevWidths => {
                 const newWidths = [...prevWidths];
@@ -168,12 +173,13 @@ const calculateTopPosition = (date: Date) => {
                 ))}
             </div>
 
-            <div ref={containerRef} className="flex-1 grid" style={{ gridTemplateColumns: columnWidths.length > 0 ? columnWidths.map(w => `${w}px`).join(' ') : `repeat(${users.length}, 1fr)` }}>
+            <div ref={containerRef} className="flex-1 flex">
                 {users.map((user, index) => (
                     <div 
                         key={user.id} 
                         ref={el => { userColumnRefs.current[index] = el; }}
                         className="relative flex flex-col"
+                        style={{ width: `${columnWidths[index]}px` }}
                         onDragOver={(e) => handleDragOver(e, user.id, index)}
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, user.id, index)}
@@ -260,4 +266,3 @@ const calculateTopPosition = (date: Date) => {
         </div>
     );
 };
-
