@@ -148,15 +148,32 @@ export const DayView: React.FC<DayViewProps> = ({
                 const leftIndex = index;
                 const rightIndex = index + 1;
                 
-                // Calculate new widths
+                // Calculate proposed new widths
                 const proposedLeftWidth = startWidths[leftIndex] + deltaPercentage;
                 const proposedRightWidth = startWidths[rightIndex] - deltaPercentage;
                 
-                // Check if both columns meet minimum requirements
-                if (proposedLeftWidth >= MIN_COLUMN_WIDTH_PERCENT && 
-                    proposedRightWidth >= MIN_COLUMN_WIDTH_PERCENT) {
-                    newWidths[leftIndex] = proposedLeftWidth;
-                    newWidths[rightIndex] = proposedRightWidth;
+                // Clamp to minimum widths instead of rejecting
+                const clampedLeftWidth = Math.max(MIN_COLUMN_WIDTH_PERCENT, proposedLeftWidth);
+                const clampedRightWidth = Math.max(MIN_COLUMN_WIDTH_PERCENT, proposedRightWidth);
+                
+                // Calculate how much we actually changed after clamping
+                const actualLeftChange = clampedLeftWidth - startWidths[leftIndex];
+                const actualRightChange = clampedRightWidth - startWidths[rightIndex];
+                
+                // Only apply changes if we're not violating constraints
+                // If one column hits its minimum, the other should adjust accordingly
+                if (clampedLeftWidth === MIN_COLUMN_WIDTH_PERCENT) {
+                    // Left column hit minimum, right column gets all remaining space
+                    newWidths[leftIndex] = MIN_COLUMN_WIDTH_PERCENT;
+                    newWidths[rightIndex] = startWidths[leftIndex] + startWidths[rightIndex] - MIN_COLUMN_WIDTH_PERCENT;
+                } else if (clampedRightWidth === MIN_COLUMN_WIDTH_PERCENT) {
+                    // Right column hit minimum, left column gets all remaining space
+                    newWidths[leftIndex] = startWidths[leftIndex] + startWidths[rightIndex] - MIN_COLUMN_WIDTH_PERCENT;
+                    newWidths[rightIndex] = MIN_COLUMN_WIDTH_PERCENT;
+                } else {
+                    // Neither column hit minimum, use proposed values
+                    newWidths[leftIndex] = clampedLeftWidth;
+                    newWidths[rightIndex] = clampedRightWidth;
                 }
                 
                 // Ensure total adds up to 100% (handle floating point precision)
