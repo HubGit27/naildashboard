@@ -71,24 +71,34 @@ const CalendarPage = async ({ searchParams }: { searchParams: { [key: string]: s
   }));
 
   return (
-    <div className="p-4 flex gap-4 flex-col md:flex-row">
-      <div className="transition-all duration-300 ease-in-out w-full flex flex-col gap-8">
-        {/* Pass server-fetched data as props to the Client Component */}
-        <Scheduler
-          initialUsers={initialUsers}
-          searchParams={searchParams}
-        />
-      </div>
-      {appointment ? (
-        <AppointmentDetails appointment={appointment} allServices={serializedServices} allEmployees={initialUsers} />
-      ) : (
-        <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-200 min-w-[300px] sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-lg font-semibold text-gray-700">No appointment selected</p>
-            <p className="text-sm text-gray-500">Click on an appointment in the scheduler to see its details.</p>
-          </div>
+    <div className="h-screen flex flex-col overflow-hidden">
+      <div className="flex-1 flex gap-4 p-4 min-h-0">
+        {/* Scheduler - takes available space but can shrink */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <Scheduler
+            initialUsers={initialUsers}
+            searchParams={searchParams}
+          />
         </div>
-      )}
+        
+        {/* AppointmentDetails - fixed width, always visible */}
+        <div className="w-[400px] flex-shrink-0">
+          {appointment ? (
+            <AppointmentDetails 
+              appointment={appointment} 
+              allServices={serializedServices} 
+              allEmployees={initialUsers} 
+            />
+          ) : (
+            <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-200 h-full flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-lg font-semibold text-gray-700">No appointment selected</p>
+                <p className="text-sm text-gray-500">Click on an appointment in the scheduler to see its details.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
