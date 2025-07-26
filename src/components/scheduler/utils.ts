@@ -135,57 +135,128 @@ export interface OverlapAppointment extends SchedulerAppointment {
   column: number;
 }
 
+/**
+ * Improved overlap detection that properly handles complex overlapping scenarios
+ */
 export const getOverlappingAppointmentsLayout = (appointments: SchedulerAppointment[]): OverlapAppointment[] => {
+  if (appointments.length === 0) return [];
+  
+  // Sort appointments by start time
   const sortedAppointments = [...appointments].sort((a, b) => a.start.getTime() - b.start.getTime());
-  const columns: OverlapAppointment[][] = [];
-
-  sortedAppointments.forEach(appointment => {
-    let placed = false;
-    for (let i = 0; i < columns.length; i++) {
-      const column = columns[i];
-      // Check if the current appointment overlaps with any in this column
-      const overlaps = column.some(existing => (
-        appointment.start < existing.end && appointment.end > existing.start
-      ));
-
-      if (!overlaps) {
-        // Place the appointment in this column
-        columns[i].push({ ...appointment, column: i, left: 0, width: 0 });
-        placed = true;
-        break;
-      }
-    }
-
-    if (!placed) {
-      // Create a new column for this appointment
-      columns.push([{ ...appointment, column: columns.length, left: 0, width: 0 }]);
+  
+  // Create events for start and end times to track active appointments at any point
+  interface TimeEvent {
+    time: number;
+    type: 'start' | 'end';
+    appointmentId: string;
+  }
+  
+  const events: TimeEvent[] = [];
+  sortedAppointments.forEach(apt => {
+    events.push({ time: apt.start.getTime(), type: 'start', appointmentId: apt.id });
+    events.push({ time: apt.end.getTime(), type: 'end', appointmentId: apt.id });
+  });
+  
+  // Sort events by time, with 'end' events before 'start' events at the same time
+  events.sort((a, b) => {
+    if (a.time !== b.time) return a.time - b.time;
+    return a.type === 'end' ? -1 : 1;
+  });
+  
+  // Track maximum concurrent appointments
+  let maxConcurrent = 0;
+  let currentActive = new Set<string>();
+  
+  events.forEach(event => {
+    if (event.type === 'start') {
+      currentActive.add(event.appointmentId);
+      maxConcurrent = Math.max(maxConcurrent, currentActive.size);
+    } else {
+      currentActive.delete(event.appointmentId);
     }
   });
-
+  
+  // Now assign columns using a more sophisticated algorithm
   const result: OverlapAppointment[] = [];
-  columns.forEach(column => {
-    column.forEach(appointment => {
-      const overlappingAppointmentsInTime = sortedAppointments.filter(other => (
-        appointment.start < other.end && appointment.end > other.start
-      ));
-
-      const maxOverlaps = overlappingAppointmentsInTime.reduce((max, current) => {
-        const currentOverlaps = sortedAppointments.filter(o => (
-          current.start < o.end && current.end > o.start
-        )).length;
-        return Math.max(max, currentOverlaps);
-      }, 1);
-
-      const width = 100 / maxOverlaps;
-      const left = appointment.column * width;
-
-      result.push({
-        ...appointment,
-        left,
-        width,
-      });
+  const appointmentColumns = new Map<string, number>();
+  
+  // Reset for column assignment
+  currentActive.clear();
+  const availableColumns: boolean[] = new Array(maxConcurrent).fill(true);
+  
+  events.forEach(event => {
+    if (event.type === 'start') {
+      // Find the first available column
+      let column = 0;
+      while (!availableColumns[column]) {
+        column++;
+      }
+      
+      appointmentColumns.set(event.appointmentId, column);
+      availableColumns[column] = false;
+      currentActive.add(event.appointmentId);
+      
+    } else {
+      // Free up the column
+      const column = appointmentColumns.get(event.appointmentId);
+      if (column !== undefined) {
+        availableColumns[column] = true;
+      }
+      currentActive.delete(event.appointmentId);
+    }
+  });
+  
+  // Calculate width and position for each appointment
+  sortedAppointments.forEach(appointment => {
+    const column = appointmentColumns.get(appointment.id) || 0;
+    
+    // Find the maximum number of concurrent appointments during this appointment's duration
+    let maxConcurrentDuringThis = 1;
+    sortedAppointments.forEach(other => {
+      if (other.id !== appointment.id && 
+          appointment.start < other.end && 
+          appointment.end > other.start) {
+        maxConcurrentDuringThis++;
+      }
+    });
+    
+    // Calculate actual concurrent appointments at different time points
+    let actualMaxConcurrent = 1;
+    const checkPoints = [appointment.start.getTime()];
+    
+    // Add all start/end times of overlapping appointments as check points
+    sortedAppointments.forEach(other => {
+      if (other.id !== appointment.id &&
+          appointment.start < other.end && 
+          appointment.end > other.start) {
+        checkPoints.push(other.start.getTime());
+        checkPoints.push(other.end.getTime());
+      }
+    });
+    
+    // Check concurrent count at each point during this appointment
+    checkPoints.forEach(checkTime => {
+      if (checkTime >= appointment.start.getTime() && checkTime < appointment.end.getTime()) {
+        let concurrent = 0;
+        sortedAppointments.forEach(other => {
+          if (checkTime >= other.start.getTime() && checkTime < other.end.getTime()) {
+            concurrent++;
+          }
+        });
+        actualMaxConcurrent = Math.max(actualMaxConcurrent, concurrent);
+      }
+    });
+    
+    const width = 100 / actualMaxConcurrent;
+    const left = column * width;
+    
+    result.push({
+      ...appointment,
+      left,
+      width,
+      column
     });
   });
-
+  
   return result;
 };
